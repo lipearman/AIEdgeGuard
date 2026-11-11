@@ -57,6 +57,36 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## ความพยายามผนวก host traefik (sanuk-traefik) — ยังไม่สำเร็จ (2026-11-12)
+
+**สิ่งที่พบ:**
+1. Host traefik = Windows service `sanuk-traefik` (`C:\tools\traefik\`, LocalSystem, v3.7.17)
+   เป็นประตูหลัก: Funnel :443 → :9000 → พอร์ทัล + 15 apps (routes.yml 44 routers)
+2. ผูก crowdsec plugin (v1.3.5) สำเร็จ (Plugins loaded ✓) แต่ plugin **ต่อ LAPI/AppSec ไม่ได้**
+   → fail-closed 403 ทุก request (2.6s timeout) รวมถึง PC จริงของผู้ใช้ (100.96.132.9)
+3. สาเหตุที่พบ: **Docker loopback publish (127.0.0.1:8085/8086) ใช้ไม่ได้จาก service context**
+   (host shell curl ได้ ✓ แต่ plugin ไม่ถึง — zero LAPI/AppSec hits) + Docker Desktop
+   crash-loop ซ้ำหลายรอบทำให้ port forwarding ทั้งเครื่องพังเป็นระยะ
+4. ย้ายไป bind Tailscale IP (100.99.80.84:8085/8086) ก็ยัง fail จาก service context
+   (host shell ถึง ✓) — น่าจะเป็นข้อจำกัดระดับ OS ของ LocalSystem + docker proxy chain
+
+**สถานะปัจจุบัน:** ผนวกกลับถอย (remove_crowdsec_host_traefik.py) — พอร์ทัลกลับสู่สภาพ
+pre-EdgeGuard (ทำงานปกติ 200 ทุก path, ไม่มี WAF) — EdgeGuard stack เองยังคุ้ม
+CVAT/funnel ERPNext paths ครบ ✓
+
+**ทางไปต่อ (ต้อง elevated terminal จากผู้ใช้):**
+1. ยืนยันสมมุติฐาน: รัน curl ไป 127.0.0.1:8085 ในบริบท SYSTEM (schtasks /ru SYSTEM)
+2. ถ้ายืนยันว่า SYSTEM เข้า docker loopback publish ไม่ได้ → ทางเลือก:
+   a. publish LAPI/AppSec บน TS IP (100.99.80.84:8085/8086 ทำแล้ว ✓) + ตรวจ firewall
+   b. เปลี่ยน service LogOnAccount ของ sanuk-traefik เป็น user account
+   c. วินิจฉัย Docker Desktop loopback forwarding (อาจต้อง update/reinstall)
+3. เมื่อ plugin ต่อ LAPI ได้ → รัน attach_crowdsec_host_traefik.py (URL TS IP พร้อมแล้ว)
+   → restart service → พอร์ทัลครอบ WAF ครบ + ใส่ allow rule เฉพาะ Origin ตามแผน
+
+**ไฟล์/script ที่เกี่ยว:** tools/attach_crowdsec_host_traefik.py (URL TS IP พร้อม),
+tools/remove_crowdsec_host_traefik.py (ย้อนกลับ), backups ที่ <file>.bak-crowdsec-removal
++ .bak-edgeguard ใน C:\tools\traefik\
+
 ## เฟส 10c: Funnel (อินเทอร์เน็ต) เข้า EdgeGuard (2026-11-12) ✅
 
 **ช่องโจมตีจากอินเทอร์เน็ตจริง** เดิม: `Funnel → caddy (18112/18480/8101/18110)` ไม่มี WAF เลย
