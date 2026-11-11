@@ -57,6 +57,19 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## Route ที่ 3-4: agents-office + grafana (2026-11-12) ✅
+
+ผ่าน rule file (Traefik file provider) — เพิ่ม `crowdsec@docker` เข้า middleware chain:
+
+- **agents-office** (`agents-office.yml`): `/` 200, probe (.env/SQLi/.git) 403 ครบ
+- **grafana** (`grafana_conf.yml`): `/analytics` 401 (forwardauth เดิมทำงาน), SQLi/.env 403 ครบ — ใส่ `crowdsec@docker` **ก่อน** analytics-auth เพื่อบล็อกก่อน forward
+
+### บทเรียน: rule file edits ไม่ reload เอง
+
+Traefik fsnotify **ไม่ทำงานข้าม Windows→WSL2 bind mount** — แก้ไฟล์ rule ที่ `C:\Docker\cvat\components\analytics\` แล้วต้อง `docker restart traefik` (blip ~5 วิ) เสมอ ตรวจว่า reload แล้วด้วย probe test
+
+copy ของ rule file เก็บที่ repo: `edge-guard/cvat-rules/` (live ยัง mount จาก C:\Docker\cvat)
+
 ## Route ที่ 2: cvat_ui (2026-11-12) ✅
 
 | ทดสอบ | ผล |

@@ -1,0 +1,15 @@
+http:
+  routers:
+    agentsoffice:
+      entryPoints:
+        - web
+      middlewares:
+        - crowdsec@docker
+      service: agentsoffice
+      rule: "Host(`llm-server.tail923b9a.ts.net`) || Host(`192.168.1.58`) || Host(`100.99.80.84`)"
+
+  services:
+    agentsoffice:
+      loadBalancer:
+        servers:
+          - url: http://agents-office:4520
