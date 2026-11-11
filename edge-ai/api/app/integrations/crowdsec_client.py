@@ -77,3 +77,58 @@ async def list_decisions() -> list[dict]:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+async def add_decision(ip: str, duration_seconds: int, reason: str) -> dict:
+    """Push one ban decision (Defense executor verb 1).
+
+    CrowdSec v1.8.2 has no POST /v1/decisions route (405) — decisions are
+    pushed embedded in an ALERT via POST /v1/alerts (exactly what
+    `cscli decisions add` does). Requires MACHINE credentials (watcher).
+    The decision auto-expires per its duration ('Automatic Unblock' policy).
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    body = [{
+        "capacity": 0,
+        "decisions": [{
+            "type": "ban",
+            "scope": "ip",
+            "value": ip,
+            "duration": f"{int(duration_seconds)}s",
+            "reason": reason,
+            "origin": "edgeguard-ai",
+            "scenario": "edgeguard-ai/ai-proposed-ban",
+        }],
+        "events": [{
+            "timestamp": now.isoformat(),
+            "message": reason,
+            "meta": [],
+        }],
+        "events_count": 1,
+        "leakspeed": "",
+        "labels": ["edgeguard-ai"],
+        "message": reason,
+        "scenario": "edgeguard-ai/ai-proposed-ban",
+        "scenario_hash": "",
+        "scenario_version": "",
+        "simulated": False,
+        "source": {"ip": ip, "value": ip, "scope": "ip", "as_name": ""},
+        "start_at": (now - timedelta(seconds=1)).isoformat(),
+        "stop_at": (now + timedelta(seconds=int(duration_seconds))).isoformat(),
+    }]
+    async with await _authed_client() as client:
+        resp = await client.post("/v1/alerts", json=body)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def remove_decisions_for_ip(ip: str) -> dict:
+    """Delete all active decisions for an IP (Defense executor verb 2)."""
+    async with await _authed_client() as client:
+        resp = await client.delete(
+            "/v1/decisions", params={"ip": ip, "type": "ban"}
+        )
+        resp.raise_for_status()
+        return resp.json()

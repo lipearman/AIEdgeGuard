@@ -57,6 +57,33 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## เฟส 5-7: Detection + Decision + Defense ครบวงจร (2026-11-12) ✅
+
+**วงจร 6 Agent ปิดครบครั้งแรก:**
+
+```
+probe → WAF บล็อก → alert → watcher → Analysis Agent → incident (PG)
+  → Detection Agent: cluster เป็น campaigns
+  → Decision Agent: Policy Engine (deterministic YAML) ตัดสิน proposal
+      verdict=approve + dry-run → pending_approval (รอคน)
+      verdict=approve + auto   → executed (L1 เท่านั้น)
+      protected range          → pending_approval เสมอ
+      unknown action/type      → rejected
+  → Human: POST /api/v1/decisions/{id}/approve → Defense executor
+  → CrowdSec ban (origin=edgeguard-ai, auto-expire = Automatic Unblock)
+```
+
+ผลทดสอบจริง: approve decision #1 → ban 172.20.0.1 (30m) → ยืนยันใน cscli → unban cleanup ✓
+26 decisions ถูกประเมินถูกต้อง: protected range → pending, proposal ผิดประเภท → rejected
+
+**บทเรียนเทคนิค:**
+1. CrowdSec v1.8.2 push decision ผ่าน **POST /v1/alerts** (POST /v1/decisions = 405) — body ต้องมี origin/scenario/events_count/leakspeed/scenario_hash/meta/source.scope ครบ (validation เข้ม)
+2. `labels` เป็น []string ไม่ใช่ object
+3. Decision ของ edgeguard-ai auto-expire ตาม duration = "Automatic Unblock" ตาม policy L1
+4. Docker Desktop บนเครื่องเจอ crash-loop 1 ครั้ง (engine pipe หาย) — container ทุกตัว auto-recover ตาม restart policy ถูกต้อง, แก้ด้วย start Docker Desktop.exe ใหม่
+
+**สถานะ safety:** DEFENSE_AUTO_EXECUTE=false (dry-run) — auto mode จะเปิดหลังเฝ้าดู dry-run ผ่าน 3-7 วัน; protected ranges (LAN/Tailscale) ต้อง approve ด้วยมนุษย์เสมอ
+
 ## เฟส 4: Auto-ingestion เสร็จ (2026-11-12) ✅
 
 pipeline อัตโนมัติเต็มรูปแบบ:

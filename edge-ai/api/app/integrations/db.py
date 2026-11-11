@@ -31,6 +31,36 @@ CREATE TABLE IF NOT EXISTS incidents (
     analysis    jsonb,
     analyzed_at timestamptz
 );
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS campaign_id integer;
+CREATE TABLE IF NOT EXISTS campaigns (
+    id            serial PRIMARY KEY,
+    title         text NOT NULL,
+    source_ip     text NOT NULL DEFAULT '',
+    attack_type   text NOT NULL DEFAULT '',
+    severity      text NOT NULL DEFAULT 'medium',
+    first_seen    timestamptz NOT NULL DEFAULT now(),
+    last_seen     timestamptz NOT NULL DEFAULT now(),
+    incident_count int NOT NULL DEFAULT 0,
+    incident_ids  jsonb NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS decisions (
+    id               serial PRIMARY KEY,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    incident_alert_id text NOT NULL DEFAULT '',
+    campaign_id      integer,
+    action           text NOT NULL,
+    target           text NOT NULL DEFAULT '',
+    duration_seconds int NOT NULL DEFAULT 0,
+    proposed_by      text NOT NULL DEFAULT 'analysis-agent',
+    confidence       real NOT NULL DEFAULT 0,
+    severity         text NOT NULL DEFAULT 'medium',
+    policy_verdict   text NOT NULL,
+    policy_reason    text NOT NULL DEFAULT '',
+    policy_checks    jsonb NOT NULL DEFAULT '[]',
+    status           text NOT NULL,
+    executed_at      timestamptz,
+    result           text NOT NULL DEFAULT ''
+);
 """
 
 
@@ -139,3 +169,199 @@ async def db_ok() -> bool:
     except Exception:  # noqa: BLE001 — health check must not raise
         print(f"[db] health check failed: {sys.exc_info()[1]}", file=sys.stderr)
         return False
+
+
+# ------------------------------------------------------------ campaigns
+
+
+async def list_unclustered_analyzed() -> list[dict]:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT alert_id, source_ip, severity, reason,
+                   analysis->>'attack_type' AS attack_type
+              FROM incidents
+             WHERE analysis IS NOT NULL AND campaign_id IS NULL
+             ORDER BY id DESC LIMIT 200
+            """
+        )
+        rows = await cur.fetchall()
+    cols = ["alert_id", "source_ip", "severity", "reason", "attack_type"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+async def find_open_campaign(source_ip: str, attack_type: str) -> int | None:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT id FROM campaigns
+             WHERE source_ip = %s AND attack_type = %s
+               AND last_seen > now() - interval '24 hours'
+             ORDER BY id DESC LIMIT 1
+            """,
+            (source_ip, attack_type),
+        )
+        row = await cur.fetchone()
+    return row[0] if row else None
+
+
+async def create_campaign(source_ip: str, attack_type: str, severity: str,
+                          incident_ids: list[str]) -> int:
+    title = f"{attack_type} from {source_ip} — {len(incident_ids)} incident(s)"
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            INSERT INTO campaigns (title, source_ip, attack_type, severity,
+                                   incident_count, incident_ids)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (title, source_ip, attack_type, severity,
+             len(incident_ids), json.dumps(incident_ids)),
+        )
+        row = await cur.fetchone()
+        await conn.commit()
+        return row[0]
+
+
+async def add_incidents_to_campaign(campaign_id: int, alert_ids: list[str]) -> None:
+    async with await _connect() as conn:
+        await conn.execute(
+            """
+            UPDATE incidents SET campaign_id = %s
+             WHERE alert_id = ANY(%s)
+            """,
+            (campaign_id, alert_ids),
+        )
+        await conn.execute(
+            """
+            UPDATE campaigns
+               SET incident_count = incident_count + %s,
+                   incident_ids = incident_ids || %s,
+                   last_seen = now()
+             WHERE id = %s
+            """,
+            (len(alert_ids), json.dumps(alert_ids), campaign_id),
+        )
+        await conn.commit()
+
+
+async def list_campaigns(limit: int = 50) -> list[dict]:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT id, title, source_ip, attack_type, severity, first_seen,
+                   last_seen, incident_count
+              FROM campaigns ORDER BY last_seen DESC LIMIT %s
+            """,
+            (min(limit, 200),),
+        )
+        rows = await cur.fetchall()
+    cols = ["id", "title", "source_ip", "attack_type", "severity",
+            "first_seen", "last_seen", "incident_count"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+# ------------------------------------------------------------ decisions
+
+
+async def create_decision(incident_alert_id: str, action: str, target: str,
+                          duration_seconds: int, confidence: float,
+                          severity: str, policy_verdict: str, policy_reason: str,
+                          policy_checks: list, status: str) -> int:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            INSERT INTO decisions (incident_alert_id, action, target,
+                duration_seconds, confidence, severity, policy_verdict,
+                policy_reason, policy_checks, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (incident_alert_id, action, target, duration_seconds, confidence,
+             severity, policy_verdict, policy_reason, json.dumps(policy_checks),
+             status),
+        )
+        row = await cur.fetchone()
+        await conn.commit()
+        return row[0]
+
+
+async def list_decisions(limit: int = 50) -> list[dict]:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT id, created_at, incident_alert_id, action, target,
+                   duration_seconds, confidence, severity, policy_verdict,
+                   policy_reason, status, executed_at, result
+              FROM decisions ORDER BY id DESC LIMIT %s
+            """,
+            (min(limit, 200),),
+        )
+        rows = await cur.fetchall()
+    cols = ["id", "created_at", "incident_alert_id", "action", "target",
+            "duration_seconds", "confidence", "severity", "policy_verdict",
+            "policy_reason", "status", "executed_at", "result"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+async def get_decision(decision_id: int) -> dict | None:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT id, created_at, incident_alert_id, action, target,
+                   duration_seconds, confidence, severity, policy_verdict,
+                   policy_reason, policy_checks, status, executed_at, result
+              FROM decisions WHERE id = %s
+            """,
+            (decision_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        return None
+    cols = ["id", "created_at", "incident_alert_id", "action", "target",
+            "duration_seconds", "confidence", "severity", "policy_verdict",
+            "policy_reason", "policy_checks", "status", "executed_at", "result"]
+    return dict(zip(cols, row))
+
+
+async def update_decision_status(decision_id: int, status: str,
+                                 result: str = "") -> None:
+    async with await _connect() as conn:
+        await conn.execute(
+            """
+            UPDATE decisions
+               SET status = %s,
+                   executed_at = CASE WHEN %s IN ('executed') THEN now()
+                                      ELSE executed_at END,
+                   result = %s
+             WHERE id = %s
+            """,
+            (status, status, result, decision_id),
+        )
+        await conn.commit()
+
+
+async def list_analyzed_without_decision() -> list[dict]:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT i.alert_id, i.source_ip, i.severity, i.reason, i.analysis
+              FROM incidents i
+             WHERE i.analysis IS NOT NULL
+               AND NOT EXISTS (
+                   SELECT 1 FROM decisions d
+                    WHERE d.incident_alert_id = i.alert_id)
+             ORDER BY i.id DESC LIMIT 50
+            """
+        )
+        rows = await cur.fetchall()
+    cols = ["alert_id", "source_ip", "severity", "reason", "analysis"]
+    out = []
+    for r in rows:
+        d = dict(zip(cols, r))
+        # psycopg returns jsonb as parsed dicts already; be defensive
+        if isinstance(d["analysis"], str):
+            d["analysis"] = json.loads(d["analysis"])
+        out.append(d)
+    return out

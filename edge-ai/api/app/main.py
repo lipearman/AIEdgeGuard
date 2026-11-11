@@ -1,13 +1,16 @@
 """EdgeGuard orchestrator API (FastAPI).
 
-Phase 4 (auto-ingestion):
-- watcher: polls CrowdSec LAPI -> dedupes -> Redis stream  (background task)
-- worker:  consumes stream -> Analysis Agent -> PostgreSQL  (background task)
-- /api/v1/incidents: read the accumulated, AI-analyzed incidents
+Phases:
+- Phase 4  auto-ingestion: watcher (CrowdSec -> Redis) + worker (Analysis Agent -> PG)
+- Phase 5  detection: clusters analyzed incidents into campaigns
+- Phase 6  decision: deterministic Policy Engine evaluates AI proposals
+- Phase 7  defense: restricted executor (CrowdSec ban/unban), gated by
+           DEFENSE_AUTO_EXECUTE (dry-run default) + human approval endpoints
 
-Safety invariants (unchanged):
-- the Analysis Agent only reads evidence and proposes; it never enforces
-- /api/v1/defense/* stays behind the DEFENSE_ENABLED gate (off by default)
+Safety invariants:
+- the LLM never talks to enforcement; only the Defense executor does
+- protected ranges are NEVER auto-blocked (human approval overrides)
+- every proposal/verdict/execution is stored in the decisions table
 """
 
 import asyncio
@@ -20,7 +23,9 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from app.agents import decision, defense
 from app.agents.analysis import AnalysisResult, analyze_event
+from app.agents import decider, detection
 from app.config import settings
 from app.integrations import crowdsec_client, db, ollama_client
 from app import watcher, worker
@@ -36,12 +41,16 @@ async def lifespan(app: FastAPI):
         _background.append(asyncio.create_task(watcher.run()))
     if settings.analyze_enabled:
         _background.append(asyncio.create_task(worker.run()))
+    if settings.detection_enabled:
+        _background.append(asyncio.create_task(detection.run()))
+    if settings.decide_enabled:
+        _background.append(asyncio.create_task(decider.run()))
     yield
     for task in _background:
         task.cancel()
 
 
-app = FastAPI(title="EdgeGuard Orchestrator", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="EdgeGuard Orchestrator", version="0.3.0", lifespan=lifespan)
 
 
 # ---------------------------------------------------------------- health
@@ -179,27 +188,79 @@ async def crowdsec_decisions() -> list[dict]:
         raise HTTPException(status_code=502, detail=f"crowdsec: {exc}") from exc
 
 
-# --------------------------------------------------- defense (DISABLED)
+# ------------------------------------------- campaigns (Phase 5)
 
 
-@app.post("/api/v1/defense/decision")
-async def defense_decision() -> dict:
-    """Intentionally disabled until the deterministic Policy Engine exists.
+@app.get("/api/v1/campaigns")
+async def campaigns(limit: int = 50) -> list[dict]:
+    """Attack campaigns: clustered incidents by source_ip + attack_type."""
+    try:
+        return await db.list_campaigns(limit)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
 
-    Roadmap (feasibility-study.md section 3/9): the Defense executor will only
-    ever accept 4 fixed verbs validated by the Policy Engine. The LLM never
-    generates shell commands and never talks to enforcement directly.
-    """
-    if not settings.defense_enabled:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Defense disabled by safety gate (DEFENSE_ENABLED=false). "
-                "Requires: Policy Engine (Phase 6) + human approval workflow (Phase 7)."
-            ),
-        )
-    # Even with the gate open, no executor exists yet (Phase 7).
-    raise HTTPException(status_code=501, detail="Defense executor not implemented yet")
+
+# --------------------------- decisions + approval (Phases 6-7)
+
+
+@app.get("/api/v1/decisions")
+async def decisions_list(limit: int = 50) -> list[dict]:
+    """All AI-proposed responses with their Policy Engine verdict + status."""
+    try:
+        return await db.list_decisions(limit)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+
+
+@app.post("/api/v1/decisions/{decision_id}/approve")
+async def decision_approve(decision_id: int) -> dict:
+    """Human approval — executes the proposed action via the Defense executor."""
+    try:
+        d = await db.get_decision(decision_id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+    if not d:
+        raise HTTPException(status_code=404, detail="decision not found")
+    if d["status"] in ("executed",):
+        raise HTTPException(status_code=409, detail="already executed")
+    if d["status"] == "rejected":
+        raise HTTPException(status_code=409, detail="decision was rejected")
+
+    result = await defense.execute(
+        d["action"], d["target"], d["duration_seconds"],
+        justification=f"human-approved decision #{decision_id}",
+    )
+    status = "executed" if result.get("ok") else "failed"
+    await db.update_decision_status(decision_id, status, result=str(result))
+    return {"decision_id": decision_id, "status": status, "result": result}
+
+
+@app.post("/api/v1/decisions/{decision_id}/reject")
+async def decision_reject(decision_id: int) -> dict:
+    """Human rejection — marks the proposal rejected (nothing executes)."""
+    try:
+        d = await db.get_decision(decision_id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+    if not d:
+        raise HTTPException(status_code=404, detail="decision not found")
+    if d["status"] == "executed":
+        raise HTTPException(status_code=409, detail="already executed")
+    await db.update_decision_status(decision_id, "rejected", result="rejected by human")
+    return {"decision_id": decision_id, "status": "rejected"}
+
+
+@app.get("/api/v1/policy")
+async def policy_view() -> dict:
+    """The live deterministic Policy (what the Decision Agent enforces)."""
+    try:
+        policy = decision.load_policy()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"policy load: {exc}") from exc
+    return {
+        "mode": "auto_execute" if settings.defense_auto_execute else "dry_run (human approval)",
+        "policy": policy,
+    }
 
 
 @app.get("/api/v1/agents/status")
@@ -210,9 +271,12 @@ async def agents_status() -> dict:
             "model": settings.ollama_model,
             "mode": "auto-ingestion" if settings.ingest_enabled and settings.analyze_enabled else "manual",
         },
-        "detection": {"implemented": False, "note": "Phase 5: alert clustering/dedup over Redis stream"},
-        "decision": {"implemented": False, "note": "Phase 6: Policy Engine gate"},
-        "defense": {"implemented": False, "note": "Phase 7: restricted executor, DEFENSE_ENABLED=false"},
+        "detection": {"implemented": True, "mode": "clustering every 60s" if settings.detection_enabled else "off"},
+        "decision": {"implemented": True, "mode": "deterministic Policy Engine" if settings.decide_enabled else "off"},
+        "defense": {
+            "implemented": True,
+            "mode": "auto_execute" if settings.defense_auto_execute else "dry_run (human approval required)",
+        },
         "learning": {"implemented": False, "note": "Phase 9: pgvector incident memory + feedback loop"},
         "attack": {"implemented": False, "note": "Phase 8: lab-only, isolated VLAN"},
     }

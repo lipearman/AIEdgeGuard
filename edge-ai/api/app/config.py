@@ -27,8 +27,13 @@ class Settings(BaseSettings):
     analyze_enabled: bool = True      # worker: run Analysis Agent per new alert
     poll_interval_seconds: int = 30
 
-    # --- Safety switch: automated blocking stays OFF until the
-    #     Policy Engine (deterministic gate) is implemented and tested.
+    # --- Detection / Decision / Defense (Phases 5-7) ---
+    detection_enabled: bool = True    # cluster incidents into campaigns
+    decide_enabled: bool = True       # run Policy Engine on analyzed incidents
+    defense_auto_execute: bool = False  # FALSE = dry-run (human approval required)
+                                        # TRUE = policy-approved L1 actions auto-execute
+
+    # --- Safety switch (legacy stub, superseded by decisions workflow) ---
     defense_enabled: bool = False
 
 

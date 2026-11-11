@@ -1,0 +1,31 @@
+# EdgeGuard Policy — deterministic gate for AI-proposed responses
+# Loaded by the Decision Agent (app/agents/decision.py). Versioned; every
+# decision row stores the verdict + reason it produced.
+#
+# Response levels (from the LACD architecture):
+#   L0 log/alert        L1 rate-limit/short block (auto-eligible)
+#   L2 human approval   L3 never automated
+version: 1
+defaults:
+  default_duration_seconds: 900   # 15 min — CrowdSec expires it automatically
+  max_duration_seconds: 3600      # hard cap on any AI-proposed duration
+allowlist:
+  actions:                        # the ONLY verbs the Defense executor accepts
+    - temporary_ip_block
+  attack_types:
+    - SQL Injection Attempt
+    - Cross-Site Scripting Attempt
+    - Path Traversal / Local File Inclusion
+    - Sensitive File Probe
+    - Web Attack (anomaly scoring)
+    - Remote Code Execution Attempt
+    - Brute Force Attempt
+  min_confidence: 0.6
+  min_severities: [high, medium]
+protected_ranges:                 # NEVER auto-blocked — human approval only
+  - 127.0.0.0/8
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 100.64.0.0/10                 # Tailscale CGNAT — our own devices
+  - 169.254.0.0/16
