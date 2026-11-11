@@ -6,11 +6,13 @@ labels:
   type: traefik
 
 ---
-# 2) AppSec component — WAF engine on port 7422 (reached by Traefik plugin)
+# 2) AppSec component — WAF engine (reached by Traefik plugin)
 # NOTE: CrowdSec v1.8+ uses listen_addr host:port (appsec_port field was removed)
+# Defense-in-depth via single merged config (v1.8.2 lacks the appsec-configs list format):
+#   custom/edge-crs-full = vpatch + generic rules + OWASP CRS (in-band, anomaly scoring)
 listen_addr: 0.0.0.0:7422
 source: appsec
-appsec_config: crowdsecurity/appsec-default
+appsec_config: custom/edge-crs-full
 name: edge-appsec
 labels:
   type: appsec

@@ -60,11 +60,14 @@ services:
     container_name: gateway-crowdsec
     restart: always
     environment:
-      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules"
+      # installed on every boot (files live on container fs, must re-install)
+      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules crowdsecurity/appsec-crs-inband"
       LOCAL_API_URL: http://crowdsec:8080
     volumes:
       # NOTE: destination must be acquis.yaml (CrowdSec reads exactly this filename)
       - ./crowdsec/acquis.yml:/etc/crowdsec/acquis.yaml:ro
+      # custom merged appsec config (vpatch + generic + OWASP CRS)
+      - ./crowdsec/custom-crs-full.yaml:/etc/crowdsec/appsec-configs/custom-crs-full.yaml:ro
       - crowdsec_db:/var/lib/crowdsec/data
       - traefik_logs:/var/log/traefik:ro
     # No published ports: LAPI (8080) + AppSec (7422) reachable only inside gateway_net

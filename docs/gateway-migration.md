@@ -39,6 +39,24 @@
 5. CrowdSec v1.8: acquis ต้องใช้ `listen_addr: 0.0.0.0:7422` (field `appsec_port` ถูกถอดแล้ว) และ mount ต้องเป็นชื่อไฟล์ `acquis.yaml` เท่านั้น
 6. Plugin v1.3.5 option ที่ถูกต้อง: `crowdsecAppsecEnabled`, `crowdsecAppsecHost`, `crowdsecAppsecFailureBlock` (ตรวจจากซอร์สใน /plugins-storage)
 
+## OWASP CRS เปิดใช้แล้ว (2026-11-12) — defense-in-depth ครบ
+
+AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมกัน** ผ่าน config เดียว (`custom/edge-crs-full`):
+
+| ชั้น | จับอะไร | ผลทดสอบ |
+|---|---|---|
+| vpatch-CVE-* | โจมตีช่องโหว่ที่รู้จัก (200+ rules, อัปเดตถึง CVE-2026) | 403 ✓ |
+| generic-rules | .env/.git probe, RCE ทั่วไป | 403 ✓ |
+| **OWASP CRS (in-band)** | SQLi/XSS/LFI/RCE แบบ anomaly scoring (เกณฑ์ block ที่ 5) | **403 ทุก payload** ✓ |
+
+- FP check ผ่าน 8/8 (Thai UTF-8, quotes, base64 token, pagination, HTML fragment, REST path)
+- Alert แสดงรายละเอียด scoring เช่น `sql_injection: 30, anomaly: 30` → มีข้อมูลป้อน edge-ai วิเคราะห์
+- ข้อจำกัดเทคนิคที่ต้องรู้ (บันทึกไว้เพื่อไม่ให้เจอซ้ำ):
+  1. CrowdSec v1.8.2 ยังไม่รองรับ `appsec-configs:` (list) ใน acquis — ใช้ singular `appsec_config:` + merged config แทน (รองรับเมื่อ CrowdSec รุ่นใหม่ออก)
+  2. `crowdsecurity/crs` appsec-rule ต้องอยู่ใน COLLECTIONS env ของ compose (ไฟล์ hub อยู่บน container fs — recreate แล้วหายถ้าไม่ใส่)
+  3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
+- หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
+
 ## Rollback (ถ้าต้องการกลับไปของเดิม)
 
 ```bash

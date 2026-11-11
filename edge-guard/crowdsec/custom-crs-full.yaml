@@ -1,0 +1,14 @@
+# Custom AppSec config: CrowdSec virtual patching + generic rules + OWASP CRS (in-band)
+# Merged equivalent of appsec-default + crs-inband, because CrowdSec v1.8.2
+# does not support the multi-config "appsec-configs:" list format in acquis
+# (that format lands in a future release; see crowdsec blog Mar 2026).
+name: custom/edge-crs-full
+default_remediation: ban
+inband_rules:
+  - crowdsecurity/base-config
+  - crowdsecurity/vpatch-*
+  - crowdsecurity/generic-*
+  - crowdsecurity/crs
+outofband_rules:
+  - crowdsecurity/experimental-*
+  - crowdsecurity/appsec-generic-test
