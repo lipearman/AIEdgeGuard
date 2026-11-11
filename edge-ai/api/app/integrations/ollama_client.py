@@ -19,6 +19,27 @@ async def list_models() -> list[str]:
     return [m["name"] for m in data.get("models", [])]
 
 
+async def embed(text: str) -> list[float]:
+    """Embedding via the host Ollama (e.g. nomic-embed-text, 768 dims)."""
+    payload = {"model": settings.embedding_model, "prompt": text[:4000]}
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(f"{settings.ollama_url}/api/embeddings", json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+    emb = data.get("embedding")
+    if not emb:
+        raise ValueError("ollama returned no embedding")
+    return emb
+
+
+async def embed_many(texts: list[str]) -> list[list[float]]:
+    """Sequential embeddings (Ollama handles batching internally per call)."""
+    out = []
+    for t in texts:
+        out.append(await embed(t))
+    return out
+
+
 async def chat_json(system_prompt: str, user_content: str) -> dict:
     """Single-turn chat that must return a JSON object.
 

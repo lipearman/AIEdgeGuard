@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 
 from app.agents import decision, defense
 from app.agents.analysis import AnalysisResult, analyze_event
-from app.agents import attack, decider, detection
+from app.agents import attack, decider, detection, learning
 from app.config import settings
 from app.integrations import crowdsec_client, db, ollama_client
 from app import watcher, worker
@@ -47,6 +47,8 @@ async def lifespan(app: FastAPI):
         _background.append(asyncio.create_task(detection.run()))
     if settings.decide_enabled:
         _background.append(asyncio.create_task(decider.run()))
+    if settings.learning_enabled:
+        _background.append(asyncio.create_task(learning.run()))
     yield
     for task in _background:
         task.cancel()
@@ -273,6 +275,34 @@ async def policy_view() -> dict:
     }
 
 
+# ------------------------------------------- learning (Phase 9)
+
+
+@app.get("/api/v1/learning/stats")
+async def learning_stats() -> dict:
+    try:
+        stats = await db.embedding_stats()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+    return {**stats, "model": settings.embedding_model,
+            "dim": settings.embedding_dim,
+            "enabled": settings.learning_enabled}
+
+
+class SimilarIn(BaseModel):
+    text: str
+    k: int = Field(default=3)
+
+
+@app.post("/api/v1/learning/similar")
+async def learning_similar(body: SimilarIn) -> list[dict]:
+    """Find past incidents similar to free text (RAG lookup)."""
+    try:
+        return await learning.similar_context(body.text, k=body.k)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"embedding: {exc}") from exc
+
+
 # ------------------------------------------- attack lab (Phase 8)
 
 
@@ -343,5 +373,9 @@ async def agents_status() -> dict:
             "mode": "lab" if settings.attack_enabled else "kill switch OFF (ATTACK_ENABLED=false)",
             "targets": settings.attack_target_allowlist,
         },
-        "learning": {"implemented": False, "note": "Phase 9: pgvector incident memory + feedback loop"},
+        "learning": {
+            "implemented": True,
+            "mode": f"pgvector ({settings.embedding_model}, {settings.embedding_dim}d)"
+                    if settings.learning_enabled else "off",
+        },
     }

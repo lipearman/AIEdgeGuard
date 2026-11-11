@@ -12,6 +12,7 @@ import sys
 
 import redis.asyncio as aioredis
 
+from app.agents import learning
 from app.agents.analysis import analyze_event
 from app.config import settings
 from app.integrations import db
@@ -176,6 +177,22 @@ async def _process(r, msg_id, fields) -> None:
         "destination": "(from alert context)",
         "evidence": _compact_evidence(incident),
     }
+    # Phase 9: similar past incidents as RAG context (learning loop)
+    if settings.learning_enabled:
+        try:
+            stext = (f"kind: {incident.get('kind')}\n"
+                     f"reason: {incident.get('reason')}")
+            similar = await learning.similar_context(stext, exclude_alert_id=alert_id)
+            if similar:
+                event["evidence"]["similar_past_incidents"] = [
+                    {"alert_id": s["alert_id"],
+                     "attack_type": s.get("attack_type"),
+                     "similarity": round(float(s.get("similarity") or 0), 2),
+                     "reason": str(s.get("reason") or "")[:80]}
+                    for s in similar
+                ]
+        except Exception as exc:  # noqa: BLE001 — context is best-effort
+            sys.stderr.write(f"[worker] similar context failed: {exc}\n")
     force = False
     try:
         result = await asyncio.wait_for(analyze_event(event), timeout=120.0)

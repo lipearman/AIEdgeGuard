@@ -32,6 +32,9 @@ services:
       ATTACK_ENABLED: ${ATTACK_ENABLED:-false}
       ATTACK_TARGET_ALLOWLIST: ${ATTACK_TARGET_ALLOWLIST:-juicelab.lab.local}
       ATTACKER_URL: ${ATTACKER_URL:-http://edge-attacker:8000}
+      LEARNING_ENABLED: ${LEARNING_ENABLED:-true}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text:latest}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
     extra_hosts:
       # lets the container reach the host Ollama service (Docker Desktop)
       - "host.docker.internal:host-gateway"

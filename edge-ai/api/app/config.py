@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     attack_target_allowlist: str = "juicelab.lab.local"  # comma-separated hosts
     attacker_url: str = "http://edge-attacker:8000"
 
+    # --- Learning loop (Phase 9) ---
+    learning_enabled: bool = True     # embed incidents into pgvector
+    embedding_model: str = "nomic-embed-text:latest"  # 768 dims, 0.3GB
+    embedding_dim: int = 768
+    learning_batch: int = 10          # incidents embedded per loop tick
+    similar_top_k: int = 3            # similar past incidents fed to Analysis
+
     # --- Safety switch (legacy stub, superseded by decisions workflow) ---
     defense_enabled: bool = False
 

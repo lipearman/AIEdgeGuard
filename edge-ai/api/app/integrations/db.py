@@ -78,7 +78,77 @@ CREATE TABLE IF NOT EXISTS attacks (
 async def init_schema() -> None:
     async with await _connect() as conn:
         await conn.execute(SCHEMA)
+        # embedding dimension comes from the loaded embedding model
+        await conn.execute(
+            f"ALTER TABLE incidents ADD COLUMN IF NOT EXISTS "
+            f"embedding vector({settings.embedding_dim})"
+        )
         await conn.commit()
+
+
+async def list_unembedded(limit: int = 10) -> list[dict]:
+    """Analyzed incidents that have no embedding yet."""
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT alert_id, kind, severity, reason, source_ip,
+                   analysis->>'attack_type' AS attack_type,
+                   analysis->>'reasoning'   AS reasoning
+              FROM incidents
+             WHERE analysis IS NOT NULL AND embedding IS NULL
+             ORDER BY id DESC LIMIT %s
+            """,
+            (min(limit, 100),),
+        )
+        rows = await cur.fetchall()
+    cols = ["alert_id", "kind", "severity", "reason", "source_ip",
+            "attack_type", "reasoning"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+async def set_embedding(alert_id: str, embedding: list[float]) -> None:
+    async with await _connect() as conn:
+        await conn.execute(
+            "UPDATE incidents SET embedding = %s::vector WHERE alert_id = %s",
+            ("[" + ",".join(f"{x:.7f}" for x in embedding) + "]", alert_id),
+        )
+        await conn.commit()
+
+
+async def search_similar(embedding: list[float], k: int = 3,
+                         exclude_alert_id: str | None = None) -> list[dict]:
+    """Top-k similar analyzed incidents by cosine distance (pgvector <=>)."""
+    vec = "[" + ",".join(f"{x:.7f}" for x in embedding) + "]"
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            f"""
+            SELECT alert_id, kind, severity, reason, source_ip,
+                   analysis->>'attack_type' AS attack_type,
+                   1 - (embedding <=> %s::vector) AS similarity
+              FROM incidents
+             WHERE embedding IS NOT NULL AND alert_id <> COALESCE(%s, '')
+             ORDER BY embedding <=> %s::vector
+             LIMIT %s
+            """,
+            (vec, exclude_alert_id or "", vec, max(1, min(k, 20))),
+        )
+        rows = await cur.fetchall()
+    cols = ["alert_id", "kind", "severity", "reason", "source_ip",
+            "attack_type", "similarity"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+async def embedding_stats() -> dict:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT count(*) FILTER (WHERE embedding IS NOT NULL) AS embedded,
+                   count(*) FILTER (WHERE analysis IS NOT NULL)  AS analyzed
+              FROM incidents
+            """
+        )
+        row = await cur.fetchone()
+    return {"embedded": row[0], "analyzed": row[1]}
 
 
 async def _connect() -> psycopg.AsyncConnection:

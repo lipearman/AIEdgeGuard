@@ -27,6 +27,10 @@ HARD RULES:
    - confidence: 0.0-1.0 based on how specific the evidence is
    - reasoning: 2-4 sentences citing the evidence
    Never leave a field empty. Never output empty strings.
+5. If the evidence contains "similar_past_incidents", use them for
+   consistency: the same class of attack must get the same attack_type label
+   as before. When similarity is high, mention the recurrence in reasoning
+   (e.g. "matches 2 prior incidents from the same source").
 
 EXAMPLE OUTPUT:
 {"attack_type": "Sensitive File Probe", "severity": "high", "confidence": 0.9,
