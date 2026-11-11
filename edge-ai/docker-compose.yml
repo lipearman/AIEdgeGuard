@@ -43,7 +43,7 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       # local access only; 8099 because gateway traefik owns host 8080
-      - "127.0.0.1:8099:8000"
+      - "100.99.80.84:8099:8000"
     depends_on:
       - redis
     networks:
