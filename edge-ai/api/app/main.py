@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from app.agents import decision, defense
 from app.agents.analysis import AnalysisResult, analyze_event
-from app.agents import decider, detection
+from app.agents import attack, decider, detection
 from app.config import settings
 from app.integrations import crowdsec_client, db, ollama_client
 from app import watcher, worker
@@ -263,6 +263,57 @@ async def policy_view() -> dict:
     }
 
 
+# ------------------------------------------- attack lab (Phase 8)
+
+
+class AttackRun(BaseModel):
+    target: str = Field(default="juicelab.lab.local")
+
+
+@app.get("/api/v1/attacks/catalog")
+async def attack_catalog() -> dict:
+    """Techniques available in the attacker container (for the UI)."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            return await client.get(f"{settings.attacker_url}/catalog").json()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"attacker: {exc}") from exc
+
+
+@app.post("/api/v1/attacks/run")
+async def attack_run(run: AttackRun) -> dict:
+    """Run one AI-planned attack campaign against the LAB victim.
+
+    Safety: ATTACK_ENABLED kill switch + target allowlist + deterministic
+    payload catalog (the LLM only selects techniques, never crafts payloads).
+    """
+    try:
+        return await attack.run_attack(run.target)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"attack failed: {exc}") from exc
+
+
+@app.get("/api/v1/attacks")
+async def attacks_list(limit: int = 20) -> list[dict]:
+    try:
+        return await attack.list_attacks(limit)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+
+
+@app.get("/api/v1/attacks/{attack_id}")
+async def attack_detail(attack_id: int) -> dict:
+    try:
+        run = await attack.get_attack(attack_id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+    if not run:
+        raise HTTPException(status_code=404, detail="attack not found")
+    return run
+
+
 @app.get("/api/v1/agents/status")
 async def agents_status() -> dict:
     return {
@@ -277,6 +328,10 @@ async def agents_status() -> dict:
             "implemented": True,
             "mode": "auto_execute" if settings.defense_auto_execute else "dry_run (human approval required)",
         },
+        "attack": {
+            "implemented": True,
+            "mode": "lab" if settings.attack_enabled else "kill switch OFF (ATTACK_ENABLED=false)",
+            "targets": settings.attack_target_allowlist,
+        },
         "learning": {"implemented": False, "note": "Phase 9: pgvector incident memory + feedback loop"},
-        "attack": {"implemented": False, "note": "Phase 8: lab-only, isolated VLAN"},
     }

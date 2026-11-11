@@ -1,0 +1,43 @@
+# EdgeGuard Attack Lab — isolated cyber range
+#
+# Victim:  OWASP Juice Shop (deliberately vulnerable app) behind the gateway
+#          Traefik with the crowdsec middleware — protected exactly like a
+#          production route, so attacks test the REAL defensive chain.
+# Attacker: edge-attacker container — the only thing allowed to fire attacks.
+#          Its docker IP on edge_web is the ban target during tests, so a
+#          CrowdSec ban only affects the attacker, never real users.
+#
+# Safety: attacks fire ONLY at the host in ATTACK_TARGET_ALLOWLIST
+#         (see edge-ai/api/app/config.py) and only when ATTACK_ENABLED=true.
+#
+# Deploy: docker compose -f lab/docker-compose.yml up -d  (from repo root)
+
+services:
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    container_name: lab-juice-shop
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.juicelab.rule=Host(`juicelab.lab.local`)
+      - traefik.http.routers.juicelab.entrypoints=pilot
+      - traefik.http.routers.juicelab.service=juicelab
+      - traefik.http.services.juicelab.loadbalancer.server.port=3000
+      - traefik.http.routers.juicelab.middlewares=crowdsec@docker
+      - traefik.docker.network=edge_web
+    networks:
+      - edge_web
+
+  edge-attacker:
+    image: python:3.12-slim
+    container_name: edge-attacker
+    restart: unless-stopped
+    command: python /opt/attacker/attacker.py
+    volumes:
+      - ./attacker/attacker.py:/opt/attacker/attacker.py:ro
+    networks:
+      - edge_web
+
+networks:
+  edge_web:
+    external: true

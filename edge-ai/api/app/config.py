@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     defense_auto_execute: bool = False  # FALSE = dry-run (human approval required)
                                         # TRUE = policy-approved L1 actions auto-execute
 
+    # --- Attack Lab (Phase 8) — kill switch OFF by default ---
+    attack_enabled: bool = False      # master kill switch for the Attack Simulator
+    attack_target_allowlist: str = "juicelab.lab.local"  # comma-separated hosts
+    attacker_url: str = "http://edge-attacker:8000"
+
     # --- Safety switch (legacy stub, superseded by decisions workflow) ---
     defense_enabled: bool = False
 

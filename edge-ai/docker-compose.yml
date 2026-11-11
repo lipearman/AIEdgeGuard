@@ -29,6 +29,9 @@ services:
       DECIDE_ENABLED: ${DECIDE_ENABLED:-true}
       DEFENSE_AUTO_EXECUTE: ${DEFENSE_AUTO_EXECUTE:-false}
       DEFENSE_ENABLED: ${DEFENSE_ENABLED:-false}
+      ATTACK_ENABLED: ${ATTACK_ENABLED:-false}
+      ATTACK_TARGET_ALLOWLIST: ${ATTACK_TARGET_ALLOWLIST:-juicelab.lab.local}
+      ATTACKER_URL: ${ATTACKER_URL:-http://edge-attacker:8000}
     extra_hosts:
       # lets the container reach the host Ollama service (Docker Desktop)
       - "host.docker.internal:host-gateway"
@@ -39,6 +42,7 @@ services:
       - redis
     networks:
       - gateway_net
+      - edge_web   # reach the attack-lab attacker container (Phase 8)
 
   redis:
     image: redis:7-alpine
@@ -63,5 +67,7 @@ networks:
   # its project name, so the real network is "gateway_gateway_net"
   gateway_net:
     name: gateway_gateway_net
+    external: true
+  edge_web:
     external: true
 

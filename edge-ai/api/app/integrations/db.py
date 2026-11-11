@@ -61,6 +61,17 @@ CREATE TABLE IF NOT EXISTS decisions (
     executed_at      timestamptz,
     result           text NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS attacks (
+    id                serial PRIMARY KEY,
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    target_host       text NOT NULL,
+    attacker_ip       text NOT NULL DEFAULT '',
+    plan              jsonb NOT NULL,
+    results           jsonb NOT NULL,
+    techniques_total  int NOT NULL DEFAULT 0,
+    techniques_detected int NOT NULL DEFAULT 0,
+    new_alerts        int NOT NULL DEFAULT 0
+);
 """
 
 
@@ -365,3 +376,56 @@ async def list_analyzed_without_decision() -> list[dict]:
             d["analysis"] = json.loads(d["analysis"])
         out.append(d)
     return out
+
+
+# ------------------------------------------------------------ attacks
+
+
+async def insert_attack(run: dict) -> int:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            INSERT INTO attacks (target_host, attacker_ip, plan, results,
+                                 techniques_total, techniques_detected, new_alerts)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                run["target_host"], run["attacker_ip"],
+                json.dumps(run["plan"], ensure_ascii=False),
+                json.dumps(run["results"], ensure_ascii=False),
+                run["techniques_total"], run["techniques_detected"],
+                run["new_alerts"],
+            ),
+        )
+        row = await cur.fetchone()
+        await conn.commit()
+        return row[0]
+
+
+async def list_attacks(limit: int = 20) -> list[dict]:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            """
+            SELECT id, created_at, target_host, attacker_ip, techniques_total,
+                   techniques_detected, new_alerts
+              FROM attacks ORDER BY id DESC LIMIT %s
+            """,
+            (min(limit, 100),),
+        )
+        rows = await cur.fetchall()
+    cols = ["id", "created_at", "target_host", "attacker_ip",
+            "techniques_total", "techniques_detected", "new_alerts"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+async def get_attack(attack_id: int) -> dict | None:
+    async with await _connect() as conn:
+        cur = await conn.execute(
+            "SELECT * FROM attacks WHERE id = %s", (attack_id,)
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in cur.description]
+    return dict(zip(cols, row))

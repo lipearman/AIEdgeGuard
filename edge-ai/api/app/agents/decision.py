@@ -73,13 +73,19 @@ def evaluate(proposal: dict, attack_type: str, confidence: float,
         return Decision("pending_approval", "no target IP could be determined",
                         action=action, checks=checks + ["target=missing"])
 
-    # 3. protected ranges are NEVER auto-approved
+    # 3. protected ranges are NEVER auto-approved (human approval required,
+    #    but the proposed duration is still computed + clamped properly)
+    duration = proposed_duration or int(defaults.get("default_duration_seconds") or 900)
+    max_dur = int(defaults.get("max_duration_seconds") or 3600)
+    if duration > max_dur:
+        duration = max_dur
+        checks.append(f"duration clamped to {max_dur}s")
     if _ip_in_ranges(target, policy.get("protected_ranges") or []):
         checks.append(f"target={target} is protected (L2: human approval)")
         return Decision(
             "pending_approval",
             f"target {target} is in a protected range — requires human approval",
-            action=action, target=target, checks=checks,
+            action=action, target=target, duration_seconds=duration, checks=checks,
         )
     checks.append(f"target={target} is external")
 
