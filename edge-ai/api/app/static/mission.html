@@ -489,14 +489,23 @@ function renderBottom() {
 /* ---------- LIVE PACKET FEED ---------- */
 function renderPackets() {
   const rows = D.packets?.packets || [];
-  document.getElementById('packets').innerHTML = rows.map(p => {
+  // collapse consecutive identical requests (e.g. 1s polling) into ×N rows
+  const grouped = [];
+  for (const p of rows) {
+    const last = grouped[grouped.length - 1];
+    const key = `${p.method}|${p.path}|${p.status}|${p.source_ip}`;
+    if (last && last._key === key) { last._n++; last.ts = p.ts; continue; }
+    grouped.push({ ...p, _key: key, _n: 1 });
+  }
+  document.getElementById('packets').innerHTML = grouped.map(p => {
     const s = String(p.status);
     const cls = s.startsWith('2') ? 's2' : s.startsWith('3') ? 's3' :
                 s.startsWith('4') ? 's4' : s.startsWith('5') ? 's5' : 's0';
+    const mult = p._n > 1 ? ` <b style="color:var(--cyan2)">×${p._n}</b>` : '';
     return `<div class="packet">
       <time>${esc(p.ts.slice(11) || p.ts)}</time>
       <span>${esc(p.method)}</span>
-      <span>${esc(p.path)}</span>
+      <span>${esc(p.path)}${mult}</span>
       <span class="${cls}">${esc(s)}</span>
       <span class="muted">${esc(p.source_ip)}</span>
     </div>`;

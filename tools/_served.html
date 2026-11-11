@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdgeGuard — Mission Control</title>
+<script>window.__errs = []; window.addEventListener('error', e => window.__errs.push(String(e.message).slice(0, 200)));</script>
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/vendor/OrbitControls.js"></script>
+<style>
+  :root {
+    --bg: #04080f; --panel: rgba(8, 18, 35, .85); --line: rgba(40, 120, 255, .18);
+    --cyan: #19c6ff; --cyan2: #6fe3ff; --text: #cfe6ff; --muted: #5e7fb0;
+    --ok: #22e5a0; --warn: #ffb020; --bad: #ff2e55;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(25,198,255,.06), transparent),
+      radial-gradient(900px 500px at 50% 110%, rgba(25,198,255,.05), transparent),
+      var(--bg);
+      color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 13px;
+      min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 20px;
+           border-bottom: 1px solid var(--line); background: rgba(4,10,20,.9);
+           flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo .mark { width: 34px; height: 34px; border-radius: 8px; display: grid;
+      place-items: center; font-weight: 800; font-size: 13px; color: #04121f;
+      background: linear-gradient(135deg, var(--cyan2), var(--cyan));
+      box-shadow: 0 0 14px rgba(25,198,255,.55); }
+  .logo b { font-size: 17px; letter-spacing: 1px; }
+  .logo small { display: block; color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  .nav { display: flex; gap: 4px; margin-left: 20px; }
+  .nav a, .nav span { padding: 6px 14px; border-radius: 6px; color: var(--muted);
+      text-decoration: none; font-size: 12px; letter-spacing: 1px; }
+  .nav a.active { background: rgba(25,198,255,.14); color: var(--cyan2);
+                  border: 1px solid rgba(25,198,255,.35); }
+  #clock { margin-left: auto; text-align: right; color: var(--cyan2); font-size: 12px;
+           font-family: Consolas, monospace; }
+
+  main { padding: 14px; display: grid; gap: 12px;
+         grid-template-columns: 300px 1fr 300px; max-width: 1700px; margin: 0 auto; }
+  .col { display: grid; gap: 12px; align-content: start; min-width: 0; }
+  .col.center { order: 0; } .col.left { order: 1; } .col.right { order: 2; }
+  .bottom { grid-column: 1 / -1; order: 3;
+            display: grid; gap: 12px; grid-template-columns: repeat(4, 1fr); }
+  .panel { background: var(--panel); border: 1px solid var(--line);
+           border-radius: 10px; padding: 12px; backdrop-filter: blur(4px); min-width: 0; }
+  .panel h3 { font-size: 12px; letter-spacing: 1.5px; color: var(--cyan2);
+              margin-bottom: 2px; }
+  .panel .sub { color: var(--muted); font-size: 10px; margin-bottom: 8px; }
+  .num { font-family: Consolas, monospace; font-weight: 700; }
+  .muted { color: var(--muted); }
+
+  @media (max-width: 1240px) {
+    main { grid-template-columns: 1fr 1fr; }
+    .col.center { grid-column: 1 / -1; order: -1; }
+    .bottom { grid-column: 1 / -1; grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; }
+    .bottom { grid-template-columns: 1fr; }
+    .nav { display: none; }
+    #clock { margin-left: 0; width: 100%; }
+  }
+
+  .trow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+  .trow .num { font-size: 18px; }
+  .trow .lbl { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+  .donutWrap { display: flex; align-items: center; gap: 10px; }
+  .legend { font-size: 11px; }
+  .legend div { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .feedItem { display: grid; grid-template-columns: auto 1fr auto; gap: 8px;
+              padding: 6px 4px; border-bottom: 1px dashed rgba(40,120,255,.12);
+              align-items: center; }
+  .sev { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; }
+  .sev.high { background: rgba(255,46,85,.2); color: var(--bad); }
+  .sev.medium { background: rgba(255,176,32,.2); color: var(--warn); }
+  .sev.low { background: rgba(34,229,160,.2); color: var(--ok); }
+  .feedItem .what { font-size: 11px; min-width: 0; overflow: hidden;
+                    text-overflow: ellipsis; white-space: nowrap; }
+  .feedItem .what small { display: block; color: var(--muted); font-size: 10px; }
+  .feedItem time { color: var(--muted); font-size: 10px; font-family: Consolas, monospace; }
+
+  .mapWrap { position: relative; min-width: 0; }
+  #core3d { width: 100%; height: 430px; display: block; border-radius: 8px;
+            background: radial-gradient(600px 300px at 50% 60%,
+              rgba(25,198,255,.08), transparent), rgba(3,8,18,.7); }
+  @media (max-width: 860px) { #core3d { height: 320px; } }
+  .dragHint { position: absolute; top: 8px; right: 10px; color: var(--muted);
+              font-size: 10px; letter-spacing: 1px; }
+  .banner { text-align: center; padding: 10px; margin-top: 8px; border-radius: 8px;
+            border: 1px solid rgba(34,229,160,.4); }
+  .banner b { font-size: 16px; letter-spacing: 3px; color: var(--ok); }
+  .banner.engaged { border-color: rgba(255,46,85,.5); }
+  .banner.engaged b { color: var(--bad); letter-spacing: 2px; }
+  .banner small { display: block; color: var(--cyan2); font-size: 10px;
+                  letter-spacing: 2px; margin-top: 2px; }
+
+  .packet { display: grid; grid-template-columns: 58px 46px minmax(0,1fr) 44px 90px;
+            gap: 8px; padding: 3px 4px; font-family: Consolas, monospace;
+            font-size: 11px; border-bottom: 1px solid rgba(40,120,255,.08); }
+  .packet span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .packet time { color: var(--muted); }
+  .s2 { color: var(--ok); } .s3 { color: var(--cyan2); }
+  .s4 { color: var(--bad); font-weight: 700; } .s5 { color: var(--bad); }
+  .s0 { color: var(--muted); }
+  #packets { max-height: 240px; overflow: auto; }
+
+  .check { display: flex; gap: 8px; align-items: center; margin: 6px 0; font-size: 11px; }
+  .check .ic { width: 18px; height: 18px; border-radius: 50%; display: grid;
+               place-items: center; font-size: 10px;
+               background: rgba(25,198,255,.12); color: var(--cyan2);
+               border: 1px solid rgba(25,198,255,.4); flex-shrink: 0; }
+  .proc { margin-top: 10px; }
+  .bar { height: 5px; background: rgba(25,198,255,.12); border-radius: 4px;
+         overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--cyan2));
+               box-shadow: 0 0 8px rgba(25,198,255,.6); transition: width .6s; }
+  .vec { display: grid; grid-template-columns: minmax(80px, 130px) 1fr 44px; gap: 8px;
+         align-items: center; margin: 7px 0; font-size: 11px; }
+  .vec > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vec .bar > div { background: linear-gradient(90deg, #ff2e55, #ff7a3d); }
+  .gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+            margin-top: 8px; text-align: center; }
+  .gauge .num { font-size: 16px; }
+  .gauge .lbl { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+
+  .sysrow { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 11px; }
+  .sysrow .ic { width: 30px; height: 30px; border-radius: 8px; display: grid;
+                place-items: center; font-size: 14px; flex-shrink: 0;
+                background: rgba(25,198,255,.1); border: 1px solid var(--line); }
+  .sysrow .st { color: var(--ok); font-size: 11px; font-weight: 700; }
+
+  @keyframes pulse { 0% { transform: scale(.9); opacity: .9; }
+                     100% { transform: scale(1.5); opacity: 0; } }
+  .ring { animation: pulse 2.6s ease-out infinite; transform-origin: center; }
+  .ring.d2 { animation-delay: .9s; } .ring.d3 { animation-delay: 1.8s; }
+  .glow { filter: drop-shadow(0 0 6px rgba(25,198,255,.8)); }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab { padding: 8px 16px; background: var(--panel); border: 1px solid var(--line);
+         border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 13px; }
+  .tab.active { color: var(--text); border-color: var(--accent, var(--cyan));
+                background: rgba(25,198,255,.12); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th { text-align: left; padding: 8px 10px; color: var(--muted); font-size: 12px;
+       border-bottom: 1px solid var(--line); background: var(--panel2, rgba(8,18,35,.9)); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  button { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line);
+           background: var(--panel); color: var(--text); cursor: pointer;
+           font-size: 12px; }
+  button.run { border-color: var(--cyan); color: var(--cyan); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .empty { color: var(--muted); padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="mark">AI</div>
+    <div><b>EdgeGuard</b><small>MISSION CONTROL</small></div>
+  </div>
+  <div class="nav">
+    <span class="active">MISSION</span>
+    <a href="/dashboard">OPERATOR</a>
+    <span>LAB</span>
+    <span>NETWORK</span>
+  </div>
+  <div id="clock">--:--:-- UTC</div>
+</header>
+
+<main>
+  <!-- CENTER (3D) -->
+  <div class="col center">
+    <div class="panel mapWrap">
+      <h3>DEFENSE CORE — 3D BATTLESPACE</h3>
+      <div class="sub">drag to rotate · scroll to zoom · red = blocked packets · green = passed</div>
+      <span class="dragHint">THREE.JS LIVE</span>
+      <canvas id="core3d"></canvas>
+    </div>
+    <div class="banner" id="banner"><b>SYSTEM PROTECTED</b>
+      <small>AI THREAT DETECTION ACTIVE</small></div>
+    <div class="panel">
+      <h3>LIVE PACKET FEED</h3>
+      <div class="sub">every request hitting the gateway — newest first</div>
+      <div class="packet" style="color:var(--muted)">
+        <span>TIME</span><span>METHOD</span><span>PATH</span><span>STATUS</span><span>SOURCE</span>
+      </div>
+      <div id="packets" style="max-height:220px; overflow:auto"></div>
+    </div>
+  </div>
+
+  <!-- LEFT -->
+  <div class="col left">
+    <div class="panel">
+      <h3>THREAT OVERVIEW</h3><div class="sub">Real-time Summary (last 12h)</div>
+      <svg id="spark" width="100%" height="46" viewBox="0 0 260 46" preserveAspectRatio="none"></svg>
+      <div class="trow">
+        <div><div class="num" id="tTotal">0</div><div class="lbl">TOTAL</div></div>
+        <div><div class="num" style="color:var(--bad)" id="tHigh">0</div><div class="lbl">HIGH</div></div>
+        <div><div class="num" style="color:var(--warn)" id="tMed">0</div><div class="lbl">MED</div></div>
+        <div><div class="num" style="color:var(--ok)" id="tLow">0</div><div class="lbl">LOW</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>ACTIVE THREATS</h3><div class="sub">By Severity</div>
+      <div class="donutWrap">
+        <svg width="92" height="92" viewBox="0 0 42 42" id="donut">
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(40,120,255,.15)" stroke-width="5"></circle>
+          <circle id="dArc" cx="21" cy="21" r="15.9" fill="none" stroke="var(--cyan)" stroke-width="5"
+                  stroke-dasharray="0 100" stroke-dashoffset="25" stroke-linecap="round"
+                  transform="rotate(-90 21 21)"></circle>
+          <text x="21" y="20" text-anchor="middle" fill="var(--text)" font-size="7" id="dTotal" class="num">0</text>
+          <text x="21" y="27" text-anchor="middle" fill="var(--muted)" font-size="4">TOTAL</text>
+        </svg>
+        <div class="legend" id="dLegend"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>THREAT ACTIVITY FEED</h3><div class="sub">AI-analyzed incidents</div>
+      <div id="feed"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col right">
+    <div class="panel">
+      <h3>AI DETECTION ENGINE</h3><div class="sub">Active defense layers</div>
+      <div id="engine"></div>
+      <div class="proc"><span class="muted" style="font-size:10px">PIPELINE PROCESSING</span>
+        <div class="bar"><div id="procBar" style="width:0%"></div></div>
+        <span class="muted" id="procLbl" style="font-size:10px">idle</span></div>
+    </div>
+    <div class="panel">
+      <h3>TOP ATTACK VECTORS</h3><div class="sub">By AI-classified type</div>
+      <div id="vectors"></div>
+    </div>
+    <div class="panel">
+      <h3>RESPONSE STATUS</h3><div class="sub">AI-proposed responses (policy gated)</div>
+      <div class="gauges" id="gauges"></div>
+      <div class="muted" style="font-size:10px; margin-top:8px" id="dmode"></div>
+    </div>
+    <div class="panel">
+      <h3>ATTACK LAB</h3><div class="sub">Self-test with live fire</div>
+      <div class="sysrow"><div class="ic">🎯</div>
+        <div>runs: <b id="labRuns" class="num">0</b><br>
+        <span class="muted">lab detection</span></div>
+        <div style="margin-left:auto"><button class="run" id="btnRun">▶ run</button></div></div>
+      <div class="bar"><div id="labBar" style="width:0%; background:linear-gradient(90deg,#22e5a0,#19c6ff)"></div></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM -->
+  <div class="bottom">
+    <div class="panel"><h3>PROTECTED ROUTES</h3><div class="sub">behind crowdsec middleware</div>
+      <div class="sysrow"><div class="ic">🧊</div><div>CVAT API + UI<br><span class="st">PROTECTED</span></div></div>
+      <div class="sysrow"><div class="ic">🧊</div><div>agents-office<br><span class="st">PROTECTED</span></div></div>
+      <div class="sysrow"><div class="ic">🧊</div><div>grafana /analytics<br><span class="st">PROTECTED</span></div></div>
+      <div class="sysrow"><div class="ic">🧊</div><div>juice-shop (lab)<br><span class="st">PROTECTED</span></div></div>
+    </div>
+    <div class="panel"><h3>AI SERVICES</h3><div class="sub">local, offline-capable</div>
+      <div class="sysrow"><div class="ic">🧠</div><div>Analysis model<br><span class="st" id="mStat">…</span></div></div>
+      <div class="sysrow"><div class="ic">📐</div><div>Embedding model<br><span class="st" id="eStat">…</span></div></div>
+      <div class="sysrow"><div class="ic">⚖️</div><div>Policy Engine<br><span class="st">ACTIVE</span></div></div>
+      <div class="sysrow"><div class="ic">📚</div><div>Vector memory<br><span class="st" id="vStat">…</span></div></div>
+    </div>
+    <div class="panel"><h3>INCIDENTS / HOUR</h3><div class="sub">last 12 hours</div>
+      <svg id="hist" width="100%" height="90" viewBox="0 0 260 90" preserveAspectRatio="none"></svg>
+      <div class="muted" id="histLbl" style="font-size:10px"></div>
+    </div>
+    <div class="panel"><h3>DECISIONS TODAY</h3><div class="sub">proposed → gated → executed</div>
+      <svg id="dchart" width="100%" height="90" viewBox="0 0 260 90" preserveAspectRatio="none"></svg>
+      <div class="muted" style="font-size:10px">green = executed · amber = pending approval</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const j = u => fetch(u).then(r => r.json());
+let D = {};
+let activeTab = null;
+
+async function loadAll() {
+  try {
+    const [health, status, incidents, campaigns, decisions, attacks, packets, learning, policy] =
+      await Promise.all([
+        j('/health'), j('/api/v1/agents/status'), j('/api/v1/incidents?limit=200'),
+        j('/api/v1/campaigns?limit=50'), j('/api/v1/decisions?limit=100'),
+        j('/api/v1/attacks?limit=20'), j('/api/v1/packets?limit=80'),
+        j('/api/v1/learning/stats'), j('/api/v1/policy'),
+      ]);
+    D = { health, status, incidents, campaigns, decisions, attacks, packets, learning, policy };
+    renderHeader(); renderOverview(); renderDonut(); renderFeed();
+    renderEngine(); renderVectors(); renderGauges(); renderBottom();
+    renderPackets(); spawnFromPackets(packets?.packets || []);
+    if (activeTab !== null) renderTab();
+    countdown = 15;
+  } catch (e) { console.error('load error', e); }
+}
+
+function renderHeader() {
+  const st = D.status || {};
+  document.getElementById('clock').textContent =
+    new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
+  renderBanner();
+  const btn = document.getElementById('btnRun');
+  if (btn) btn.disabled = !st.attack?.implemented;
+}
+
+/* ---------- LEFT panels ---------- */
+function renderOverview() {
+  const inc = D.incidents || [];
+  const now = Date.now();
+  const h12 = new Array(12).fill(0);
+  for (const i of inc) {
+    const t = new Date(i.created_at).getTime();
+    if (isNaN(t)) continue;
+    const hoursAgo = Math.floor((now - t) / 3600000);
+    if (hoursAgo >= 0 && hoursAgo < 12) h12[11 - hoursAgo]++;
+  }
+  const total = h12.reduce((a, b) => a + b, 0);
+  const high = inc.filter(i => i.severity === 'high').length;
+  const med = inc.filter(i => i.severity === 'medium').length;
+  const low = inc.filter(i => i.severity === 'low' || i.severity === 'info').length;
+  document.getElementById('tTotal').textContent = total;
+  document.getElementById('tHigh').textContent = high;
+  document.getElementById('tMed').textContent = med;
+  document.getElementById('tLow').textContent = low;
+  const max = Math.max(...h12, 1);
+  const w = 260 / 12;
+  let svg = '';
+  h12.forEach((v, idx) => {
+    const bh = (v / max) * 38;
+    svg += `<rect x="${idx * w + 2}" y="${44 - bh}" width="${w - 4}" height="${bh}"
+      fill="${v ? 'rgba(255,46,85,.55)' : 'rgba(40,120,255,.15)'}" rx="2"></rect>`;
+  });
+  svg += `<polyline points="${h12.map((v, i) =>
+    `${i * w + w / 2},${44 - (v / max) * 38}`).join(' ')}" fill="none"
+    stroke="var(--cyan)" stroke-width="1.5" opacity=".8"></polyline>`;
+  document.getElementById('spark').innerHTML = svg;
+}
+
+function renderDonut() {
+  const inc = D.incidents || [];
+  const counts = { high: 0, medium: 0, low: 0 };
+  for (const i of inc) counts[i.severity] = (counts[i.severity] || 0) + 1;
+  const total = inc.length || 1;
+  document.getElementById('dTotal').textContent = inc.length;
+  const colors = { high: 'var(--bad)', medium: 'var(--warn)', low: 'var(--ok)' };
+  let offset = 25, arcs = '', legend = '';
+  for (const [k, v] of Object.entries(counts)) {
+    const pct = (v / total) * 100;
+    if (pct > 0) arcs += `<circle cx="21" cy="21" r="15.9" fill="none"
+      stroke="${colors[k]}" stroke-width="5" stroke-dasharray="${pct} ${100 - pct}"
+      stroke-dashoffset="${offset}" transform="rotate(-90 21 21)"></circle>`;
+    offset -= pct;
+    legend += `<div><span class="dot" style="background:${colors[k]}"></span>
+      ${k.toUpperCase()} <b class="num">${v}</b></div>`;
+  }
+  const arcEl = document.getElementById('dArc');
+  arcEl.outerHTML = arcs || '<circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(40,120,255,.15)" stroke-width="5"></circle>';
+  document.getElementById('dLegend').innerHTML = legend;
+}
+
+function renderFeed() {
+  const inc = (D.incidents || []).slice(0, 8);
+  document.getElementById('feed').innerHTML = inc.length ? inc.map(i => `
+    <div class="feedItem">
+      <span class="sev ${esc(i.severity)}">${esc((i.severity||'').toUpperCase())}</span>
+      <div class="what">${esc((i.reason || i.kind || '').slice(0, 44))}
+        <small>${esc(i.source_ip)} · ${esc(i.alert_id)}</small></div>
+      <time>${dt(i.created_at).slice(11)}</time>
+    </div>`).join('') : '<div class="muted">no incidents yet</div>';
+}
+function dt(s) { return String(s ?? '').replace('T', ' ').slice(0, 19); }
+
+/* ---------- RIGHT panels ---------- */
+function renderEngine() {
+  const st = D.status || {};
+  const layers = [
+    { ic: '🛡', t: 'IP Reputation Ban', v: st.defense?.mode },
+    { ic: '🧬', t: 'Virtual Patching (vpatch)', v: 'active' },
+    { ic: '📏', t: 'OWASP CRS (in-band)', v: 'active' },
+    { ic: '👁', t: 'JSON Body Inspection', v: 'active' },
+    { ic: '🤖', t: 'AI Anomaly Analysis', v: st.analysis?.mode },
+  ];
+  document.getElementById('engine').innerHTML = layers.map(l =>
+    `<div class="check"><span class="ic">${l.ic}</span>
+     <div style="min-width:0;overflow:hidden;text-overflow:ellipsis">${l.t}
+     <br><span class="muted" style="font-size:9px">${esc(String(l.v||''))}</span></div></div>`).join('');
+  const inc = D.incidents || [];
+  const last10m = inc.filter(i => Date.now() - new Date(i.created_at).getTime() < 600000).length;
+  const pct = Math.min(100, 30 + last10m * 8);
+  document.getElementById('procBar').style.width = pct + '%';
+  document.getElementById('procLbl').textContent =
+    last10m ? `analyzing window: ${last10m} incident(s) / 10m` : 'idle — monitoring';
+}
+
+function renderVectors() {
+  const inc = D.incidents || [];
+  const counts = {};
+  for (const i of inc) {
+    const key = (i.attack_type && i.attack_type !== 'null') ? i.attack_type : 'unclassified';
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const max = sorted[0]?.[1] || 1;
+  document.getElementById('vectors').innerHTML = sorted.map(([k, v]) => `
+    <div class="vec"><span>${esc(k.slice(0, 20))}</span>
+      <div class="bar"><div style="width:${v / max * 100}%"></div></div>
+      <span class="num">${v}</span></div>`).join('') ||
+    '<div class="muted">no classified vectors yet</div>';
+}
+
+function renderGauges() {
+  const ds = D.decisions || [];
+  const c = { executed: 0, pending: 0, other: 0 };
+  for (const d of ds) {
+    if (d.status === 'executed') c.executed++;
+    else if (d.status === 'pending_approval') c.pending++;
+    else c.other++;
+  }
+  const items = [
+    { n: c.executed, l: 'EXECUTED', c: 'var(--ok)' },
+    { n: c.pending, l: 'PENDING', c: 'var(--warn)' },
+    { n: c.other, l: 'OTHER', c: 'var(--muted)' },
+  ];
+  document.getElementById('gauges').innerHTML = items.map(g => `
+    <div class="gauge"><div class="num" style="color:${g.c}">${g.n}</div>
+    <div class="lbl">${g.l}</div></div>`).join('');
+  document.getElementById('dmode').textContent =
+    'mode: ' + (D.status?.defense?.mode || '…');
+}
+
+function renderBottom() {
+  const h = D.health || {};
+  document.getElementById('mStat').textContent = h.ollama || '…';
+  document.getElementById('eStat').textContent = D.learning?.model?.split(':')[0] || '…';
+  document.getElementById('vStat').textContent = `${D.learning?.embedded ?? '…'} vectors`;
+  document.getElementById('labRuns').textContent = (D.attacks || []).length;
+  const det = (D.attacks || []).reduce((a, x) => a + (x.techniques_detected || 0), 0);
+  const tot = (D.attacks || []).reduce((a, x) => a + (x.techniques_total || 0), 0);
+  document.getElementById('labBar').style.width = (tot ? det / tot * 100 : 0) + '%';
+
+  const inc = D.incidents || [];
+  const h12 = new Array(12).fill(0);
+  for (const i of inc) {
+    const t = new Date(i.created_at).getTime();
+    const hoursAgo = Math.floor((Date.now() - t) / 3600000);
+    if (hoursAgo >= 0 && hoursAgo < 12) h12[11 - hoursAgo]++;
+  }
+  const max = Math.max(...h12, 1);
+  const w = 260 / 12;
+  document.getElementById('hist').innerHTML = h12.map((v, i) => {
+    const bh = (v / max) * 78;
+    return `<rect x="${i * w + 3}" y="${86 - bh}" width="${w - 6}" height="${bh}"
+      fill="${v ? 'var(--cyan)' : 'rgba(40,120,255,.15)'}" rx="3" opacity="${v ? .85 : .5}"></rect>
+      <text x="${i * w + w / 2}" y="88" text-anchor="middle" fill="var(--muted)" font-size="7">${12 - i}h</text>`;
+  }).join('');
+  document.getElementById('histLbl').textContent =
+    `total ${h12.reduce((a, b) => a + b, 0)} incident(s) in 12h`;
+
+  const ds = D.decisions || [];
+  const days = new Array(7).fill(0), pend = new Array(7).fill(0);
+  for (const d of ds) {
+    const t = new Date(d.created_at).getTime();
+    const daysAgo = Math.floor((Date.now() - t) / 86400000);
+    if (daysAgo < 0 || daysAgo > 6) continue;
+    if (d.status === 'executed') days[6 - daysAgo]++;
+    else if (d.status === 'pending_approval') pend[6 - daysAgo]++;
+  }
+  const dmax = Math.max(...days.map((v, i) => v + pend[i]), 1);
+  const dw = 260 / 7;
+  document.getElementById('dchart').innerHTML = days.map((v, i) => {
+    const eh = (v / dmax) * 76, ph = (pend[i] / dmax) * 76;
+    return `<rect x="${i * dw + 6}" y="${84 - eh}" width="${dw - 12}" height="${eh}"
+      fill="var(--ok)" rx="3" opacity=".8"></rect>
+      <rect x="${i * dw + 6}" y="${84 - eh - ph}" width="${dw - 12}" height="${ph}"
+      fill="var(--warn)" rx="3" opacity=".8"></rect>
+      <text x="${i * dw + dw / 2}" y="86" text-anchor="middle" fill="var(--muted)" font-size="7">${6 - i}d</text>`;
+  }).join('');
+}
+
+/* ---------- LIVE PACKET FEED ---------- */
+function renderPackets() {
+  const rows = D.packets?.packets || [];
+  // collapse consecutive identical requests (e.g. 1s polling) into ×N rows
+  const grouped = [];
+  for (const p of rows) {
+    const last = grouped[grouped.length - 1];
+    const key = `${p.method}|${p.path}|${p.status}|${p.source_ip}`;
+    if (last && last._key === key) { last._n++; last.ts = p.ts; continue; }
+    grouped.push({ ...p, _key: key, _n: 1 });
+  }
+  document.getElementById('packets').innerHTML = grouped.map(p => {
+    const s = String(p.status);
+    const cls = s.startsWith('2') ? 's2' : s.startsWith('3') ? 's3' :
+                s.startsWith('4') ? 's4' : s.startsWith('5') ? 's5' : 's0';
+    const mult = p._n > 1 ? ` <b style="color:var(--cyan2)">×${p._n}</b>` : '';
+    return `<div class="packet">
+      <time>${esc(p.ts.slice(11) || p.ts)}</time>
+      <span>${esc(p.method)}</span>
+      <span>${esc(p.path)}${mult}</span>
+      <span class="${cls}">${esc(s)}</span>
+      <span class="muted">${esc(p.source_ip)}</span>
+    </div>`;
+  }).join('') || '<div class="muted">no packets</div>';
+}
+
+/* ---------- THREE.JS 3D BATTLESPACE ---------- */
+const ROUTES = [
+  { name: 'cvat-api', angle: 90 },
+  { name: 'cvat-ui', angle: 162 },
+  { name: 'juice-lab', angle: 234 },
+  { name: 'grafana', angle: 306 },
+  { name: 'agents-office', angle: 18 },
+];
+let three = null;
+let lastSpawnTs = 0;
+
+function initThree() {
+  const canvas = document.getElementById('core3d');
+  if (!window.THREE) {
+    canvas.replaceWith(Object.assign(document.createElement('div'), {
+      innerHTML: '<div class="empty">three.js unavailable — fallback 2D view</div>' }));
+    return false;
+  }
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x04080f, 0.018);
+
+    const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 300);
+    camera.position.set(0, 16, 30);
+
+    const controls = new THREE.OrbitControls(camera, canvas);
+    controls.target.set(0, 3, 0);
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.enablePan = false;
+    controls.maxPolarAngle = Math.PI / 2.1;
+    controls.minDistance = 10;
+    controls.maxDistance = 60;
+
+    scene.add(new THREE.AmbientLight(0x224466, 0.9));
+    const p1 = new THREE.PointLight(0x19c6ff, 2.2, 60); p1.position.set(0, 12, 0); scene.add(p1);
+    const p2 = new THREE.PointLight(0xff2e55, 1.0, 70); p2.position.set(-22, 8, -14); scene.add(p2);
+
+    // cyber grid floor
+    const grid = new THREE.GridHelper(80, 40, 0x1a5a8a, 0x0a2440);
+    grid.material.transparent = true; grid.material.opacity = 0.55;
+    scene.add(grid);
+
+    // starfield dust
+    const starGeo = new THREE.BufferGeometry();
+    const pos = [];
+    for (let i = 0; i < 700; i++) {
+      pos.push((Math.random() - .5) * 90, Math.random() * 40 - 2, (Math.random() - .5) * 90);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+      color: 0x2a6fb0, size: 0.08, transparent: true, opacity: 0.6 })));
+
+    // defense core
+    const core = new THREE.Group(); core.position.set(0, 5, 0);
+    const wire = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(2.4, 1),
+      new THREE.MeshBasicMaterial({ color: 0x19c6ff, wireframe: true, transparent: true, opacity: 0.85 }));
+    const inner = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.5, 1),
+      new THREE.MeshStandardMaterial({ color: 0x0a2a4a, emissive: 0x19c6ff,
+        emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.6, flatShading: true }));
+    const halo = new THREE.Mesh(
+      new THREE.SphereGeometry(3, 24, 24),
+      new THREE.MeshBasicMaterial({ color: 0x19c6ff, transparent: true, opacity: 0.07 }));
+    core.add(wire, inner, halo);
+    const coreLight = new THREE.PointLight(0x19c6ff, 2, 30); core.add(coreLight);
+    scene.add(core);
+
+    // shield dome (perimeter)
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(8.5, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x19c6ff, transparent: true, opacity: 0.05,
+        side: THREE.DoubleSide }));
+    scene.add(dome);
+    const domeWire = new THREE.Mesh(
+      new THREE.SphereGeometry(8.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x19c6ff, wireframe: true,
+        transparent: true, opacity: 0.06 }));
+    scene.add(domeWire);
+
+    // protected route nodes
+    const nodeGeo = new THREE.ConeGeometry(0.7, 2.6, 6);
+    const labelSprites = [];
+    for (const r of ROUTES) {
+      const rad = r.angle * Math.PI / 180;
+      const x = Math.sin(rad) * 13, z = Math.cos(rad) * 13;
+      const node = new THREE.Mesh(nodeGeo, new THREE.MeshStandardMaterial({
+        color: 0x0d2b4d, emissive: 0x19c6ff, emissiveIntensity: 0.8,
+        roughness: 0.4, metalness: 0.5, flatShading: true }));
+      node.position.set(x, 1.3, z);
+      scene.add(node);
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.03, 10, 6),
+        new THREE.MeshBasicMaterial({ color: 0x19c6ff, transparent: true, opacity: 0.25 }));
+      beam.position.set(x / 2, 5, z / 2);
+      beam.lookAt(new THREE.Vector3(0, 5, 0));
+      beam.rotateX(Math.PI / 2);
+      scene.add(beam);
+      labelSprites.push(makeLabel(r.name, x, 3.4, z));
+    }
+    for (const s of labelSprites) scene.add(s);
+
+    // projectile pool
+    const projectiles = [];
+    const geoRed = new THREE.SphereGeometry(0.3, 12, 12);
+    const matRed = new THREE.MeshBasicMaterial({ color: 0xff2e55 });
+    const geoGreen = new THREE.SphereGeometry(0.24, 12, 12);
+    const matGreen = new THREE.MeshBasicMaterial({ color: 0x22e5a0 });
+
+    function spawnPacket(p) {
+      const status = Number(p.status) || 0;
+      const bad = status >= 400;
+      const startAngle = Math.random() * Math.PI * 2;
+      const start = new THREE.Vector3(
+        Math.sin(startAngle) * 30, 2 + Math.random() * 6, Math.cos(startAngle) * 30);
+      const target = bad
+        ? new THREE.Vector3(Math.sin(startAngle) * 8.5, 3.5, Math.cos(startAngle) * 8.5) // blocked at dome
+        : new THREE.Vector3(Math.sin(p._nodeAngle ?? Math.random() * Math.PI * 2) * 13, 2.5,
+                            Math.cos(p._nodeAngle ?? Math.random() * Math.PI * 2) * 13);
+      const mesh = new THREE.Mesh(bad ? geoRed : geoGreen, bad ? matRed : matGreen);
+      mesh.position.copy(start);
+      scene.add(mesh);
+      projectiles.push({ mesh, start, target, bad, t: 0, speed: 0.55 + Math.random() * 0.35,
+                         ring: null, exploded: false });
+    }
+    let burstGeo = new THREE.SphereGeometry(0.5, 10, 10);
+    const bursts = [];
+
+    function explode(at) {
+      const m = new THREE.Mesh(burstGeo,
+        new THREE.MeshBasicMaterial({ color: 0xff2e55, transparent: true, opacity: 0.9 }));
+      m.position.copy(at);
+      scene.add(m);
+      bursts.push({ m, t: 0 });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      core.rotation.y += dt * 0.4;
+      core.rotation.x += dt * 0.15;
+      inner.position.y = Math.sin(clock.elapsedTime * 2) * 0.15;
+      controls.update();
+      // projectiles
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const pr = projectiles[i];
+        pr.t += dt * pr.speed;
+        if (pr.t >= 1) {
+          if (pr.bad) explode(pr.target);
+          scene.remove(pr.mesh);
+          projectiles.splice(i, 1);
+          continue;
+        }
+        pr.mesh.position.lerpVectors(pr.start, pr.target, pr.t);
+        pr.mesh.position.y += Math.sin(pr.t * Math.PI) * 1.2;
+      }
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const b = bursts[i];
+        b.t += dt;
+        b.m.scale.setScalar(1 + b.t * 6);
+        b.m.material.opacity = Math.max(0, 0.9 - b.t * 1.8);
+        if (b.t > 0.5) { scene.remove(b.m); bursts.splice(i, 1); }
+      }
+      renderer.render(scene, camera);
+    }
+
+    function resize() {
+      const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+      const h = canvas.clientHeight || 430;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(resize).observe(canvas.parentElement);
+    resize();
+
+    const clock = new THREE.Clock();
+    animate();
+    three = { spawnPacket, scene };
+    return true;
+  } catch (e) {
+    console.error('three init failed', e);
+    return false;
+  }
+}
+
+function makeLabel(text, x, y, z) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 30px Segoe UI, sans-serif';
+  ctx.fillStyle = '#6fe3ff';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#19c6ff'; ctx.shadowBlur = 8;
+  ctx.fillText(text, 128, 40);
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sprite.scale.set(6, 1.5, 1);
+  sprite.position.set(x, y, z);
+  return sprite;
+}
+
+function spawnFromPackets(packets) {
+  if (!three) return;
+  const fresh = packets.filter(p => {
+    const ts = Date.parse((p.ts || '').replace(' ', 'T') + 'Z');
+    return !isNaN(ts) && ts > lastSpawnTs && Number(p.status) > 0 &&
+           p.router && p.router !== '-';
+  });
+  if (!fresh.length) return;
+  const nodeAngles = {};
+  ROUTES.forEach(r => nodeAngles[r.name] = r.angle * Math.PI / 180);
+  for (const p of fresh.slice(0, 14)) {
+    const packet = { ...p, status: Number(p.status), _nodeAngle: nodeAngles[p.router] };
+    three.spawnPacket(packet);
+    lastSpawnTs = Math.max(lastSpawnTs, Date.parse((p.ts || '').replace(' ', 'T') + 'Z'));
+  }
+}
+
+function showThreeFallback() {
+  const canvas = document.getElementById('core3d');
+  if (canvas) canvas.style.display = 'none';
+  document.querySelector('.dragHint').textContent = '2D FALLBACK MODE';
+}
+
+/* ---------- banner + kill switch state ---------- */
+function renderClock() {
+  document.getElementById('clock').textContent =
+    new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
+}
+
+function renderBanner() {
+  const packets = D.packets?.packets || [];
+  const banner = document.getElementById('banner');
+  const now = Date.now();
+  const recentBlock = packets.some(p => String(p.status) === '403' &&
+    now - Date.parse((p.ts || '').replace(' ', 'T') + 'Z') < 120000);
+  if (recentBlock) {
+    banner.className = 'banner engaged';
+    banner.innerHTML = `<b>ACTIVE DEFENSE — BLOCKING</b><small>WAF + CROWDSEC ENGAGED</small>`;
+  } else {
+    banner.className = 'banner';
+    banner.innerHTML = `<b>SYSTEM PROTECTED</b><small>AI THREAT DETECTION ACTIVE</small>`;
+  }
+}
+
+/* ---------- operator tab (kept from dashboard, minimal) ---------- */
+let tabEl = null;
+function ensureTabs() {
+  if (tabEl) return tabEl;
+  tabEl = document.createElement('div');
+  tabEl.innerHTML = `
+    <div class="tabs">
+      <div class="tab active" data-tab="approvals">Approvals <span class="badge"></span></div>
+      <div class="tab" data-tab="decisions">Decisions</div>
+      <div class="tab" data-tab="policy">Policy</div>
+    </div><div id="tabBody"></div>`;
+  return tabEl;
+}
+
+async function runAttackLab() {
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await j('/api/v1/attacks/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: 'juicelab.lab.local' }) });
+    console.log('attack run', res.id, res.techniques_detected + '/' + res.techniques_total);
+    await loadAll();
+  } catch (e) { console.error(e); }
+  btn.disabled = false; btn.textContent = '▶ run';
+}
+document.getElementById('btnRun').addEventListener('click', runAttackLab);
+
+renderClock();
+setInterval(renderClock, 1000);
+loadAll();
+setInterval(loadAll, 15000);
+// three.js LAST — a 3D failure must never kill the data rendering
+const threeReady = initThree();
+</script>
+</body>
+</html>
