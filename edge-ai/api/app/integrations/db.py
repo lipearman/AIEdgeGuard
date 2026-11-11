@@ -230,15 +230,16 @@ async def list_incidents(limit: int = 50) -> list[dict]:
     async with await _connect() as conn:
         cur = await conn.execute(
             """
-            SELECT id, alert_id, created_at, source, kind, severity, reason,
-                   source_ip, (analysis IS NOT NULL) AS analyzed
+            SELECT id, alert_id, created_at, source_ip, kind, severity, reason,
+                   analysis->>'attack_type' AS attack_type,
+                   (analysis IS NOT NULL) AS analyzed
               FROM incidents ORDER BY id DESC LIMIT %s
             """,
             (min(limit, 200),),
         )
         rows = await cur.fetchall()
-    cols = ["id", "alert_id", "created_at", "source", "kind", "severity",
-            "reason", "source_ip", "analyzed"]
+    cols = ["id", "alert_id", "created_at", "source_ip", "kind", "severity",
+            "reason", "attack_type", "analyzed"]
     return [dict(zip(cols, r)) for r in rows]
 
 

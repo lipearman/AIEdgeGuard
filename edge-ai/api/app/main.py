@@ -65,6 +65,12 @@ async def dashboard():
     return FileResponse(_STATIC / "dashboard.html")
 
 
+@app.get("/mission", include_in_schema=False)
+async def mission():
+    """Mission Control view — cinematic real-time defense visualization."""
+    return FileResponse(_STATIC / "mission.html")
+
+
 # ---------------------------------------------------------------- health
 
 
@@ -301,6 +307,54 @@ async def learning_similar(body: SimilarIn) -> list[dict]:
         return await learning.similar_context(body.text, k=body.k)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"embedding: {exc}") from exc
+
+
+# ------------------------------------------- packets (Phase 10 mission view)
+
+
+def _tail_access_log(lines: int) -> list[dict]:
+    """Read the last N JSON lines of the gateway traefik access log."""
+    path = "/var/log/traefik/access.log"
+    out: list[dict] = []
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, 2)
+            size = fh.tell()
+            fh.seek(max(0, size - 400_000))
+            chunk = fh.read().decode("utf-8", errors="replace")
+        for line in chunk.splitlines()[-lines:]:
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            out.append({
+                "ts": d.get("StartUTC", "")[:19].replace("T", " "),
+                "method": d.get("RequestMethod", ""),
+                "path": str(d.get("RequestPath", ""))[:90],
+                "host": d.get("RequestHost", ""),
+                "status": d.get("DownstreamStatus", 0),
+                "source_ip": d.get("ClientHost", ""),
+                "router": str(d.get("RouterName", "")).replace("@docker", ""),
+                "ms": d.get("Duration", 0) // 1_000_000,
+            })
+    except FileNotFoundError:
+        return [{"error": "access log not mounted (gateway_traefik_logs volume)"}]
+    except Exception as exc:  # noqa: BLE001
+        return [{"error": str(exc)[:120]}]
+    return out
+
+
+@app.get("/api/v1/packets")
+async def packets(limit: int = 80) -> dict:
+    """Latest raw requests hitting the gateway (live packet feed)."""
+    lines = min(max(limit, 1), 300)
+    rows = await asyncio.to_thread(_tail_access_log, lines)
+    rows.reverse()  # newest first
+    blocked = sum(1 for r in rows if str(r.get("status")) == "403")
+    return {"count": len(rows), "blocked_403": blocked, "packets": rows}
 
 
 # ------------------------------------------- attack lab (Phase 8)

@@ -35,6 +35,9 @@ services:
       LEARNING_ENABLED: ${LEARNING_ENABLED:-true}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text:latest}
       EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
+    volumes:
+      # Phase 10 mission view: live packet feed reads the gateway access log
+      - gateway_traefik_logs:/var/log/traefik:ro
     extra_hosts:
       # lets the container reach the host Ollama service (Docker Desktop)
       - "host.docker.internal:host-gateway"
@@ -64,6 +67,9 @@ services:
 
 volumes:
   redis_data:
+  gateway_traefik_logs:
+    external: true
+    name: gateway_traefik_logs
 
 networks:
   # owned by the gateway stack (C:\Docker\gateway) — compose prefixes it with
