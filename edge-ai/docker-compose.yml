@@ -29,8 +29,8 @@ services:
       # lets the container reach the host Ollama service (Docker Desktop)
       - "host.docker.internal:host-gateway"
     ports:
-      # local access only; the dashboard will be wired to this later
-      - "127.0.0.1:8080:8000"
+      # local access only; 8099 because gateway traefik owns host 8080
+      - "127.0.0.1:8099:8000"
     depends_on:
       - redis
     networks:
@@ -55,7 +55,9 @@ volumes:
   redis_data:
 
 networks:
-  # owned by the gateway stack (C:\Docker\gateway) — declared external here
+  # owned by the gateway stack (C:\Docker\gateway) — compose prefixes it with
+  # its project name, so the real network is "gateway_gateway_net"
   gateway_net:
+    name: gateway_gateway_net
     external: true
 
