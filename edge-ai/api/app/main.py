@@ -18,9 +18,11 @@ import json
 import time
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app.agents import decision, defense
@@ -51,6 +53,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="EdgeGuard Orchestrator", version="0.3.0", lifespan=lifespan)
+
+_STATIC = Path(__file__).parent / "static"
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard():
+    """SOC dashboard (single-page, auto-refresh, served by this API)."""
+    return FileResponse(_STATIC / "dashboard.html")
 
 
 # ---------------------------------------------------------------- health
