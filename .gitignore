@@ -11,3 +11,4 @@ __pycache__/
 # Downloads / temp
 *.zip
 *.log
+tools/_served.html
