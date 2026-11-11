@@ -1,29 +1,47 @@
 """EdgeGuard orchestrator API (FastAPI).
 
-Pilot scope:
-- health check against Ollama / CrowdSec / Redis
-- event ingestion into a Redis stream (event bus)
-- Analysis Agent endpoint (single model, JSON-validated)
-- read-only CrowdSec visibility
-- defense endpoint that is DISABLED by default (safety gate)
+Phase 4 (auto-ingestion):
+- watcher: polls CrowdSec LAPI -> dedupes -> Redis stream  (background task)
+- worker:  consumes stream -> Analysis Agent -> PostgreSQL  (background task)
+- /api/v1/incidents: read the accumulated, AI-analyzed incidents
+
+Safety invariants (unchanged):
+- the Analysis Agent only reads evidence and proposes; it never enforces
+- /api/v1/defense/* stays behind the DEFENSE_ENABLED gate (off by default)
 """
 
+import asyncio
 import json
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from app.agents.analysis import AnalysisResult, analyze_event
-from app.agents.stubs import defense_agent, detection_agent, learning_agent
 from app.config import settings
-from app.integrations import crowdsec_client, ollama_client
-
-app = FastAPI(title="EdgeGuard Orchestrator", version="0.1.0")
+from app.integrations import crowdsec_client, db, ollama_client
+from app import watcher, worker
 
 EVENT_STREAM = "edge:events"
+_background: list[asyncio.Task] = []
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.init_schema()
+    if settings.ingest_enabled:
+        _background.append(asyncio.create_task(watcher.run()))
+    if settings.analyze_enabled:
+        _background.append(asyncio.create_task(worker.run()))
+    yield
+    for task in _background:
+        task.cancel()
+
+
+app = FastAPI(title="EdgeGuard Orchestrator", version="0.2.0", lifespan=lifespan)
 
 
 # ---------------------------------------------------------------- health
@@ -31,7 +49,10 @@ EVENT_STREAM = "edge:events"
 
 @app.get("/health")
 async def health() -> dict:
-    status = {"ollama": "unknown", "crowdsec": "unknown", "redis": "unknown"}
+    status = {
+        "ollama": "unknown", "crowdsec": "unknown",
+        "redis": "unknown", "postgres": "unknown",
+    }
 
     try:
         models = await ollama_client.list_models()
@@ -54,6 +75,8 @@ async def health() -> dict:
     except Exception as exc:  # noqa: BLE001
         status["redis"] = f"error: {exc}"
 
+    status["postgres"] = "ok" if await db.db_ok() else "error"
+
     return status
 
 
@@ -71,7 +94,7 @@ class EventIn(BaseModel):
 
 @app.post("/api/v1/events")
 async def ingest_event(event: EventIn) -> dict:
-    """Normalize one security event into the pipeline stream."""
+    """Normalize one security event into the pipeline stream (manual/test path)."""
     event_id = f"EVT-{uuid.uuid4().hex[:10]}"
     payload = event.model_dump()
     payload.update({"event_id": event_id, "received_at": int(time.time())})
@@ -94,6 +117,47 @@ async def analyze(event: EventIn) -> AnalysisResult:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+
+
+# ------------------------------------------------- incidents (Phase 4)
+
+
+@app.get("/api/v1/incidents")
+async def incidents(limit: int = 50) -> list[dict]:
+    """Latest incidents; `analyzed=true` means the Analysis Agent has run."""
+    try:
+        return await db.list_incidents(limit)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+
+
+@app.get("/api/v1/incidents/{alert_id}")
+async def incident_detail(alert_id: str) -> dict:
+    try:
+        incident = await db.get_incident(alert_id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+    if incident is None:
+        raise HTTPException(status_code=404, detail="incident not found")
+    return incident
+
+
+@app.post("/api/v1/incidents/requeue")
+async def requeue_unanalyzed(limit: int = 50) -> dict:
+    """Re-push unanalyzed incidents into the stream for the worker."""
+    try:
+        rows = await db.list_incidents(limit)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+    client = aioredis.from_url(settings.redis_url)
+    count = 0
+    for row in rows:
+        if not row["analyzed"]:
+            await client.xadd(
+                EVENT_STREAM, {"json": json.dumps({"event_id": row["alert_id"]})}
+            )
+            count += 1
+    return {"requeued": count}
 
 
 # -------------------------------------------------------- crowdsec read
@@ -141,10 +205,14 @@ async def defense_decision() -> dict:
 @app.get("/api/v1/agents/status")
 async def agents_status() -> dict:
     return {
-        "analysis": {"implemented": True, "model": settings.ollama_model},
-        "detection": {"implemented": False, "note": detection_agent.reason},
+        "analysis": {
+            "implemented": True,
+            "model": settings.ollama_model,
+            "mode": "auto-ingestion" if settings.ingest_enabled and settings.analyze_enabled else "manual",
+        },
+        "detection": {"implemented": False, "note": "Phase 5: alert clustering/dedup over Redis stream"},
         "decision": {"implemented": False, "note": "Phase 6: Policy Engine gate"},
-        "defense": {"implemented": False, "note": defense_agent.reason},
-        "learning": {"implemented": False, "note": learning_agent.reason},
+        "defense": {"implemented": False, "note": "Phase 7: restricted executor, DEFENSE_ENABLED=false"},
+        "learning": {"implemented": False, "note": "Phase 9: pgvector incident memory + feedback loop"},
         "attack": {"implemented": False, "note": "Phase 8: lab-only, isolated VLAN"},
     }

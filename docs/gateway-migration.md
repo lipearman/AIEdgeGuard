@@ -57,6 +57,27 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## เฟส 4: Auto-ingestion เสร็จ (2026-11-12) ✅
+
+pipeline อัตโนมัติเต็มรูปแบบ:
+
+```
+CrowdSec alert → watcher (poll 30s, dedupe by alert_id UNIQUE in PG)
+  → Redis stream edge:events (consumer group workers)
+  → worker → Analysis Agent (typhoon2.5-qwen3-4b, compact evidence, 120s timeout)
+  → PostgreSQL incidents (event jsonb + analysis jsonb)
+  → GET /api/v1/incidents
+```
+
+ผลทดสอบ: backlog 25 alerts วิเคราะห์ครบ + ยิง alert ใหม่ → auto-analyze ใน ~45 วิ ได้ "Path Traversal / LFI (high, conf 0.9)"
+
+**บทเรียนเทคนิค (เจอตอน debug):**
+1. LAPI v1.8.2: JSON ใช้ `message`/`scenario` (ไม่ใช่ `reason` — เป็น null), `source` เอกพจน์, `since` param ให้ HTTP 500 (ใช้ "ล่าสุด 100 + DB dedupe" แทน)
+2. redis-py asyncio คืน stream fields เป็น **bytes** — ต้อง `decode_responses=True` ไม่งั้น `fields.get("json")` เจอ None และทุก event ถูก silent-ack (ตรวจยากเพราะไม่มี error!)
+3. โมเดล 4B ตอบ JSON เปล่าเมื่อ evidence สั้น → มี **deterministic fallback classifier** (จาก reason keyword) + `needs_human_review=true` เสมอเมื่อ fallback
+4. Worker มี pending-drain (XAUTOCLAIM) กัน event ค้างเวลา restart + per-event timeout 120s
+5. POST /api/v1/incidents/requeue = ยิง backlog วิเคราะห์ซ้ำได้
+
 ## Route ที่ 3-4: agents-office + grafana (2026-11-12) ✅
 
 ผ่าน rule file (Traefik file provider) — เพิ่ม `crowdsec@docker` เข้า middleware chain:

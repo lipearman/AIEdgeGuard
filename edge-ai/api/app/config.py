@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     # --- Data plane ---
     redis_url: str = "redis://redis:6379/0"
+    database_url: str = "postgresql://edgeguard:secret@gateway-postgres:5432/edgeguard"
+
+    # --- Auto-ingestion (Phase 4) ---
+    ingest_enabled: bool = True       # watcher: poll LAPI for new alerts
+    analyze_enabled: bool = True      # worker: run Analysis Agent per new alert
+    poll_interval_seconds: int = 30
 
     # --- Safety switch: automated blocking stays OFF until the
     #     Policy Engine (deterministic gate) is implemented and tested.

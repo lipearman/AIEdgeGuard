@@ -20,7 +20,21 @@ HARD RULES:
    hosts, or findings that are not in the evidence.
 3. You analyze and recommend only. Enforcement decisions are made by a separate
    deterministic Policy Engine, not by you.
-4. Respond with a single JSON object matching the requested schema. No prose."""
+4. Respond with a single JSON object. EVERY field must be filled:
+   - attack_type: concrete label like "SQL Injection Attempt", "Cross-Site
+     Scripting Attempt", "Path Traversal / Local File Inclusion",
+     "Sensitive File Probe", "Brute Force Attempt", or "Web Attack (anomaly scoring)"
+   - confidence: 0.0-1.0 based on how specific the evidence is
+   - reasoning: 2-4 sentences citing the evidence
+   Never leave a field empty. Never output empty strings.
+
+EXAMPLE OUTPUT:
+{"attack_type": "Sensitive File Probe", "severity": "high", "confidence": 0.9,
+ "mitre_id": "T1190", "reasoning": "The request targeted /.env which exposes
+ application secrets; blocked by vpatch rule.", "prompt_injection_suspected": false,
+ "needs_human_review": false,
+ "recommended_action": {"action_type": "temporary_ip_block", "duration_seconds": 900,
+ "target": "source_ip"}}"""
 
 
 class RecommendedAction(BaseModel):

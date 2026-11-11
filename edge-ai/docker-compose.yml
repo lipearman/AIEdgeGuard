@@ -24,6 +24,7 @@ services:
       CROWDSEC_MACHINE_PASSWORD: ${CROWDSEC_MACHINE_PASSWORD}
       CROWDSEC_BOUNCER_KEY: ${CROWDSEC_BOUNCER_KEY}
       REDIS_URL: ${REDIS_URL}
+      DATABASE_URL: ${DATABASE_URL}
       DEFENSE_ENABLED: ${DEFENSE_ENABLED:-false}
     extra_hosts:
       # lets the container reach the host Ollama service (Docker Desktop)

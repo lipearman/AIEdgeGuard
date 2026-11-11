@@ -53,6 +53,16 @@ async def list_alerts(limit: int = 20) -> list[dict]:
         return resp.json()
 
 
+async def list_alerts_since(since: str, limit: int = 100) -> list[dict]:
+    """Alerts created after `since` (RFC3339). Used by the Phase-4 watcher."""
+    async with await _authed_client() as client:
+        resp = await client.get(
+            "/v1/alerts", params={"since": since, "limit": str(min(limit, 200))}
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def list_decisions() -> list[dict]:
     """Active ban decisions (read-only; bouncer-style access)."""
     if not settings.crowdsec_bouncer_key:
