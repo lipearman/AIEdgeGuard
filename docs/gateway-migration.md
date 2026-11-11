@@ -57,6 +57,17 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## Route ที่ 2: cvat_ui (2026-11-12) ✅
+
+| ทดสอบ | ผล |
+|---|---|
+| UI ปกติ: /, /login, /tasks/123, /projects/1/jobs, /favicon.ico | 200 ครบ (SPA fallback ทำงาน) ✓ |
+| /.env, /.git/config, /phpunit/..., /?id=1 OR 1=1 | **403** ✓ |
+| /wp-login.php, /actuator/env | 200 — probe เฉพาะแพลตฟอร์มที่ ruleset ไม่ครอบ (gap รู้ก่อน, เสริม rule ภายหลังได้) |
+| alert "Enabling body inspection" | informational — AppSec เตือนว่าต้อง forward body เพื่อตรวจ POST (plugin จัดการอยู่แล้ว) |
+
+สถานะ route ทั้งหมดของ CVAT-family: cvat_server ✅ → cvat_ui ✅ → agents-office ⬜ → grafana ⬜ → aitradinghunter ⬜
+
 ## Route แรกที่ผูกจริง: cvat_server (2026-11-12) ✅
 
 `cvat_server` เป็น route แรกที่อยู่หลัง `crowdsec@docker` — ผลทดสอบบน route จริง:
