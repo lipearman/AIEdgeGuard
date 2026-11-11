@@ -57,6 +57,18 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## แก้ ewiki 502: Docker Desktop WSL integration (2026-11-12) ✅
+
+/ewiki → upstream 127.0.0.1:18490 (ewiki-caddy) ที่รันผ่าน compose **ใน WSL Ubuntu**
+แต่ Docker Desktop settings: IntegratedWslDistros = [] (integration ปิด — น่าจะหลัง crash/reinstall)
+→ docker CLI หายจาก Ubuntu → compose up ไม่ได้ → caddy หาย → 502
+
+**แก้:** settings-store.json → IntegratedWslDistros = ['Ubuntu'] + restart Docker Desktop
+→ compose up ใหม่ใน Ubuntu → caddy Started → 18490 → /ewiki 200 ✓
+
+**สอนเทียบ:** เวลา app ใน WSL compose หาย ให้เช็ค Docker Desktop → Settings →
+Resources → WSL Integration → เปิด distro ที่เกี่ยว → Apply
+
 ## ความพยายามผนวก host traefik (sanuk-traefik) — ยังไม่สำเร็จ (2026-11-12)
 
 **สิ่งที่พบ:**
