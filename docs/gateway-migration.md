@@ -57,6 +57,32 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## Route แรกที่ผูกจริง: cvat_server (2026-11-12) ✅
+
+`cvat_server` เป็น route แรกที่อยู่หลัง `crowdsec@docker` — ผลทดสอบบน route จริง:
+
+| ประเภท | ผล |
+|---|---|
+| /api/server/about, /api/tasks?page=.., /api/users, /admin, /django-rq | 200/401/301 ปกติ — **ไม่มี FP** ✓ |
+| /api/.env, /api/?id=1 OR 1=1, UNION SELECT, `<script>` | **403 + alert (anomaly scoring ระบุชนิด)** ✓ |
+| `/api/?file=..%2f..%2fetc%2fpasswd`, double-encoded | 403 + alert (lfi: 40) ✓ |
+| `/static/` 403 | ไม่ใช่ WAF — nginx ปฏิเสธ directory listing เอง (ไม่มี alert) ✓ |
+| `/api/admin/../../etc/passwd` (raw) และ `%2e%2e` (single-encoded) ผ่าน | Traefik normalize path ก่อน router matching → backend nginx ก็ไม่ serve — risk ต่ำ, จดไว้ตรวจซ้ำ |
+
+### บทเรียนสำคัญ: CVAT_HOST (อย่าให้เจอซ้ำ)
+
+Label rule ของ CVAT ใช้ `${CVAT_HOST:-localhost}` — ถ้ารัน `docker compose up` โดย session ไม่มี CVAT_HOST จะได้ rule `Host('localhost')` → router จับ `/api/*` ไม่ตอบ ทุก request หล่นไป router ของ cvat-ui (200 index.html หมด — ดูเหมือน "ปกติ" แต่จริง ๆ คือ routing พัง และไม่ผ่าน WAF!)
+
+**แก้ถาวรแล้ว:** เพิ่ม `CVAT_HOST=llm-server` ลง `C:\Docker\cvat\.env` (compose อ่านอัตโนมัติทุกครั้ง)
+**วิธีตรวจ:** `docker inspect cvat_server --format '{{index .Config.Labels "traefik.http.routers.cvat.rule"}}'` ต้องขึ้น `Host('llm-server')`
+
+### คำสั่งทดสอบซ้ำ
+
+```bash
+bash tools/cvat_route_test.sh      # FP + probe บน cvat_server
+bash tools/fp_test.sh              # FP ชุดกลาง (test router)
+```
+
 ## Rollback (ถ้าต้องการกลับไปของเดิม)
 
 ```bash
