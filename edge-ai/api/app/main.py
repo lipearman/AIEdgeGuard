@@ -23,6 +23,7 @@ from pathlib import Path
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.agents import decision, defense
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="EdgeGuard Orchestrator", version="0.3.0", lifespan=lifespan)
 
 _STATIC = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
 
 @app.get("/dashboard", include_in_schema=False)
