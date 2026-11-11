@@ -1,14 +1,14 @@
-# CrowdSec data acquisition
-# 1) Traefik JSON access logs (shared named volume with the traefik container)
+# CrowdSec acquisition for the EdgeGuard gateway
+# 1) Traefik JSON access log (shared named volume "traefik_logs" with traefik)
 filenames:
   - /var/log/traefik/access.log
 labels:
   type: traefik
 
 ---
-# 2) AppSec component — WAF engine reached by Traefik plugin on port 7422
-listen_addr: 0.0.0.0
-appsec_port: 7422
+# 2) AppSec component — WAF engine on port 7422 (reached by Traefik plugin)
+# NOTE: CrowdSec v1.8+ uses listen_addr host:port (appsec_port field was removed)
+listen_addr: 0.0.0.0:7422
 source: appsec
 appsec_config: crowdsecurity/appsec-default
 name: edge-appsec

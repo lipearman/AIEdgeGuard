@@ -1,41 +1,46 @@
-# Traefik static configuration
-# Docs: https://doc.traefik.io/traefik/
+# EdgeGuard Gateway — Traefik static configuration (file-based, replaces env vars)
+# Carried over from the CVAT traefik service + new gateway capabilities.
 
 log:
   level: INFO
-
-api:
-  dashboard: false   # keep off for lab; if needed, bind to localhost with auth
-
-entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-          permanent: true
-  websecure:
-    # NOTE: this machine (Windows llm-server) already has services on :443
-    # (Tailscale + a Windows svchost), so Traefik uses :8443 instead.
-    address: ":8443"
-    # TLS: Traefik serves a default self-signed cert until you add a
-    # certificate resolver or your own certs in ./dynamic/tls.yml
-
-providers:
-  docker:
-    exposedByDefault: false     # routers only for containers with traefik.enable=true
-    network: edge_web           # connect to apps through this network
+  format: json
 
 accessLog:
   filePath: /var/log/traefik/access.log
-  format: json                  # CrowdSec parses this file
+  format: json
+  fields:
+    defaultMode: drop
+    names:
+      ClientHost: keep
+      DownstreamContentSize: keep
+      DownstreamStatus: keep
+      Duration: keep
+      RequestHost: keep
+      RequestMethod: keep
+      RequestPath: keep
+      RequestPort: keep
+      RequestProtocol: keep
+      RouterName: keep
+      StartUTC: keep
+
+entryPoints:
+  web:
+    address: ":8080"
+  pilot:
+    address: ":80"
+  pilotsecure:
+    address: ":8443"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: cvat_cvat
+  file:
+    directory: /etc/traefik/rules
 
 experimental:
   plugins:
     crowdsec-bouncer-traefik-plugin:
       moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
-      # Check the plugin catalog for the latest version before going live:
-      # https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin
+      # check latest: https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin
       version: v1.3.5

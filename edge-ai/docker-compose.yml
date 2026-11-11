@@ -1,17 +1,15 @@
 # edge-ai — AI orchestration stack (FastAPI agents)
 #
-# Reuses the EXISTING host Ollama (systemd service on port 11434).
+# Reuses the EXISTING host Ollama (Windows service on port 11434).
 # Do NOT create a second Ollama container — two instances would fight
 # over the RTX 2060's 12GB VRAM.
 #
-# Prerequisite network (created once on the host):
-#   docker network create edge_net
+# Prerequisite: the EdgeGuard gateway stack must be running first
+# (C:\Docker\gateway\) — it owns the gateway_net network that this
+# stack joins to reach CrowdSec LAPI and PostgreSQL/pgvector.
 #
-# Host Ollama hardening before using Qwen3.5 9B (on the llm-server):
-#   sudo systemctl edit ollama
-#     [Service]
-#     Environment="OLLAMA_MAX_LOADED_MODELS=1"
-#   ollama pull qwen3.5:9b
+# Host Ollama hardening before using Qwen3.5 9B (Windows):
+#   setx OLLAMA_MAX_LOADED_MODELS 1     (then restart Ollama from tray)
 
 services:
   api:
@@ -28,7 +26,7 @@ services:
       REDIS_URL: ${REDIS_URL}
       DEFENSE_ENABLED: ${DEFENSE_ENABLED:-false}
     extra_hosts:
-      # lets the container reach the host Ollama service
+      # lets the container reach the host Ollama service (Docker Desktop)
       - "host.docker.internal:host-gateway"
     ports:
       # local access only; the dashboard will be wired to this later
@@ -36,7 +34,7 @@ services:
     depends_on:
       - redis
     networks:
-      - edge_net
+      - gateway_net
 
   redis:
     image: redis:7-alpine
@@ -51,11 +49,13 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - edge_net
+      - gateway_net
 
 volumes:
   redis_data:
 
 networks:
-  edge_net:
+  # owned by the gateway stack (C:\Docker\gateway) — declared external here
+  gateway_net:
     external: true
+

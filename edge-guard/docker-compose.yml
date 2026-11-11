@@ -1,66 +1,80 @@
-# edge-guard — front-door security stack (runs on llm-server during pilot)
-# Components: Traefik (entry point) + CrowdSec (ban + AppSec WAF) + PostgreSQL/pgvector
-# (Redis lives in edge-ai compose — it is the event bus consumed by the API)
+# EdgeGuard Gateway — standalone Traefik + CrowdSec (extracted from CVAT stack)
+# Created: 2026-11-12 migration from C:\Docker\cvat\docker-compose.yml (traefik service)
 #
-# Prerequisite networks (create once on the host):
-#   docker network create edge_net   # internal: traefik, crowdsec, api, db, redis
-#   docker network create edge_web   # traefik <-> protected pilot projects
-#
-# Traefik is the ONLY thing publishing 80/443. Pilot projects stop publishing
-# ports and join edge_web instead (see pilot/MIGRATION.md).
+# Routing behavior after migration = IDENTICAL to before:
+#   - same ports (8080, 28080, 8090), same env, same rule files (mounted from cvat dir)
+#   - CVAT / agents-office / grafana / aitradinghunter routes keep working
+# New capabilities:
+#   - CrowdSec container (AppSec WAF + IP banning + LAPI for edge-ai)
+#   - crowdsec middleware (crowdsec@docker) ready to attach per-route
+#   - pilot entrypoints (:80, :8443) for new projects on edge_web network
+# Rollback: see docs/gateway-migration.md in AIEdgeGuard repo
 
 services:
   traefik:
-    image: traefik:v3.3
-    container_name: edge-traefik
-    restart: unless-stopped
+    image: traefik:v3.6
+    container_name: traefik
+    restart: always
     ports:
-      - "80:80"
-      - "8443:8443"   # :443 is taken by Tailscale/Windows services on this machine
-    volumes:
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - traefik_logs:/var/log/traefik
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "8080:8080"
+      - "28080:8080"
+      - "8090:8090"
+      - "80:80"       # entrypoint "pilot" — new projects
+      - "8443:8443"   # entrypoint "pilotsecure" — HTTPS for new projects
+                      # (:443 is taken by Tailscale on this machine)
     environment:
-      # Plugin config values come from .env; the middleware "crowdsec"
-      # defined here is referenced by pilot routers as: crowdsec@docker
-      CROWDSEC_BOUNCER_KEY: ${CROWDSEC_BOUNCER_KEY}
+      # container env used by dynamic rule files ({{ env "CVAT_HOST" }} in grafana_conf.yml)
+      CVAT_HOST: llm-server
+      DJANGO_LOG_VIEWER_HOST: grafana
+      DJANGO_LOG_VIEWER_PORT: "3000"
     labels:
       - traefik.enable=true
-      # --- crowdsec middleware (IP ban check + AppSec WAF) ---
+      # middleware "crowdsec" — attach to any router with:
+      #   traefik.http.routers.<name>.middlewares=crowdsec@docker
+      # (option names verified against plugin v1.3.5 source: pkg/configuration/configuration.go)
       - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.enabled=true
       - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdseclapiurl=http://crowdsec:8080
       - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdseclapikey=${CROWDSEC_BOUNCER_KEY}
-      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.appsecenabled=true
-      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.appsecurl=http://crowdsec:7422
-      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.appsecfailureblock=true
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdsecAppsecEnabled=true
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdsecAppsecHost=crowdsec:7422
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdsecAppsecFailureBlock=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - C:/Docker/cvat/components/analytics/grafana_conf.yml:/etc/traefik/rules/grafana_conf.yml:ro
+      - C:/Docker/cvat/components/analytics/agents-office.yml:/etc/traefik/rules/agents-office.yml:ro
+      - traefik_logs:/var/log/traefik
+      - plugins_storage:/plugins-storage
     networks:
-      - edge_net
+      - gateway_net
+      - cvat_cvat
       - edge_web
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "10"
 
   crowdsec:
     image: crowdsecurity/crowdsec:latest
-    container_name: edge-crowdsec
-    restart: unless-stopped
+    container_name: gateway-crowdsec
+    restart: always
     environment:
       COLLECTIONS: "crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules"
-      LOCAL_API_URL: ${LOCAL_API_URL:-http://crowdsec:8080}
+      LOCAL_API_URL: http://crowdsec:8080
     volumes:
-      - ./crowdsec/acquis.yml:/etc/crowdsec/acquis.yml:ro
+      # NOTE: destination must be acquis.yaml (CrowdSec reads exactly this filename)
+      - ./crowdsec/acquis.yml:/etc/crowdsec/acquis.yaml:ro
       - crowdsec_db:/var/lib/crowdsec/data
-      - crowdsec_config:/etc/crowdsec
       - traefik_logs:/var/log/traefik:ro
-    # NOTE: no published ports on purpose.
-    # LAPI (8080) and AppSec (7422) are reachable only inside edge_net.
-    # Admin via: docker compose exec crowdsec cscli ...
+    # No published ports: LAPI (8080) + AppSec (7422) reachable only inside gateway_net
     networks:
-      - edge_net
+      - gateway_net
 
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: edge-postgres
-    restart: unless-stopped
+    container_name: gateway-postgres
+    restart: always
     environment:
       POSTGRES_DB: edgeguard
       POSTGRES_USER: edgeguard
@@ -73,16 +87,22 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - edge_net
+      - gateway_net
 
 volumes:
   traefik_logs:
+  plugins_storage:
   crowdsec_db:
-  crowdsec_config:
   postgres_data:
 
 networks:
-  edge_net:
+  # explicit subnet: docker's default address pools are exhausted on this machine
+  gateway_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.210.2.0/24
+  cvat_cvat:
     external: true
   edge_web:
     external: true
