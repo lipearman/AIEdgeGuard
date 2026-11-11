@@ -45,19 +45,30 @@ AIEdgeGuard/
 └── docs/                รายงานศึกษา + แผนอ้างอิง
 ```
 
-## ติดตั้งบน llm-server (Ubuntu 24.04)
+## ติดตั้งบน llm-server (Windows + Docker Desktop)
+
+> **สภาพแวดล้อมจริง:** llm-server เป็น Windows ที่รัน Docker Desktop (WSL2 backend)
+> Ollama เป็น Windows app/service ที่ port 11434, มี Tailscale (จึงใช้ :443 ไม่ได้ → Traefik ใช้ **:8443**)
+> โมเดล qwen3.5:9b pull ไว้แล้วในเครื่อง
 
 ### ขั้นที่ 0 — เตรียมเครื่อง
 
-```bash
-# สร้าง networks (ครั้งเดียว)
+```powershell
+# สร้าง networks (ครั้งเดียว — คำสั่งเดียวกับ Linux)
 docker network create edge_net
 docker network create edge_web
 
-# เตรียม Ollama เดิมให้พร้อมรับ Qwen3.5 9B
-sudo systemctl edit ollama        # เพิ่ม: Environment="OLLAMA_MAX_LOADED_MODELS=1"
-ollama pull qwen3.5:9b            # ไฟล์ ~6.6–7.6GB ใช้ VRAM ~8–10GB บน RTX 2060 12GB
+# Ollama on Windows: ตั้ง env var แบบถาวร (รัน 1 ครั้ง แล้ว restart Ollama จาก system tray)
+setx OLLAMA_MAX_LOADED_MODELS 1
+
+# โมเดลมีอยู่แล้ว (ตรวจ: ollama list) — ถ้ายังไม่มีค่อย pull:
+# ollama pull qwen3.5:9b
 ```
+
+> **⚠️ VRAM:** เครื่องนี้ RTX 2060 12GB แต่ Windows desktop apps ใช้ไป ~8.4GB เหลือ ~3.5GB
+> - **แผนสำรองสำหรับ pilot:** ใช้ `typhoon2.5-qwen3-4b` (2.5GB ทดสอบ pipeline ได้ทันที) โดยตั้ง `OLLAMA_MODEL=hf.co/typhoon-ai/typhoon2.5-qwen3-4b-gguf:Q4_K_M` ใน `edge-ai/.env`
+> - เมื่อจะใช้ 9B จริง: ปิด Chrome/NVIDIA Overlay ลดการกิน VRAM, ปิดโมเดลที่โหลดค้าง (`ollama ps` ดู), หรือรอเครื่องแยก
+> - `host.docker.internal` บน Docker Desktop ทำงานทันที ไม่ต้องตั้งเพิ่ม
 
 ### ขั้นที่ 1 — edge-guard (ด่านหน้า)
 
@@ -117,9 +128,9 @@ curl -s http://127.0.0.1:8080/api/v1/analyze -H "Content-Type: application/json"
 
 | Test | คำสั่ง | คาดหวัง |
 |---|---|---|
-| Traefik ขึ้นแล้ว | `curl -kI https://localhost/` | 404 (ยังไม่มี router) |
-| AppSec บล็อก SQLi | `curl -k "https://localhost/?id=1 OR 1=1" -H "Host: <domain>" -I` | **403** |
-| AppSec บล็อก traversal | `curl -k "https://localhost/?f=../../etc/passwd" -H "Host: <domain>" -I` | **403** |
+| Traefik ขึ้นแล้ว | `curl -kI https://localhost:8443/` | 404 (ยังไม่มี router) |
+| AppSec บล็อก SQLi | `curl -k "https://localhost:8443/?id=1 OR 1=1" -H "Host: <domain>" -I` | **403** |
+| AppSec บล็อก traversal | `curl -k "https://localhost:8443/?f=../../etc/passwd" -H "Host: <domain>" -I` | **403** |
 | CrowdSec เห็น event | `cscli alerts list` | มี alert เกิดขึ้น |
 | Ban IP ทำงาน | `cscli decisions add --ip <IP> --duration 4h` แล้วเข้าจาก IP นั้น | **403** จาก bouncer |
 | Health ครบ | `curl 127.0.0.1:8080/health` | ollama/crowdsec/redis = ok |
@@ -128,10 +139,10 @@ curl -s http://127.0.0.1:8080/api/v1/analyze -H "Content-Type: application/json"
 ## Roadmap ถัดไป
 
 1. ✅ **เฟส 2 (ชุดนี้):** Traefik + CrowdSec/AppSec + pilot migration + FastAPI skeleton
-2. **เฟส 3:** Suricata (host install, IDS passive) + Wazuh all-in-one
+2. **เฟส 3:** Wazuh all-in-one (Docker Desktop) + Suricata ใน **WSL2 Ubuntu** (มีอยู่แล้วในเครื่อง) — Suricata ไม่รัน native บน Windows
 3. **เฟส 4–5:** event ingestion จริงจาก CrowdSec/Wazuh + Detection Agent (clustering)
 4. **เฟส 6–7:** Decision Agent + Policy Engine (YAML, deterministic) + Defense executor (มี human approval)
-5. **เฟส 8:** Attack Lab (atomic-operator บน VLAN แยก) วัด detection rate
+5. **เฟส 8:** Attack Lab (atomic-operator บน WSL2 / VM แยก) วัด detection rate
 6. **เฟส 9–10:** Learning loop (pgvector) + Dashboard (Next.js pipeline view)
 
 ## ข้อควรระวังก่อนใช้จริง

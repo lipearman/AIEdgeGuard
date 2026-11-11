@@ -17,7 +17,9 @@ entryPoints:
           scheme: https
           permanent: true
   websecure:
-    address: ":443"
+    # NOTE: this machine (Windows llm-server) already has services on :443
+    # (Tailscale + a Windows svchost), so Traefik uses :8443 instead.
+    address: ":8443"
     # TLS: Traefik serves a default self-signed cert until you add a
     # certificate resolver or your own certs in ./dynamic/tls.yml
 

@@ -43,18 +43,23 @@ networks:
 > **หมายเหตุ:** เอาแค่ `middlewares=crowdsec@docker` ก็ได้ทั้ง IP-ban และ AppSec WAF
 > ในตัวเดียว (เพราะ plugin ตั้ง `appsecenabled=true` ไว้แล้ว)
 
-## ขั้นที่ 2 — ตั้งชื่อ domain ให้เครื่องจะทดสอบรู้จัก
+## ขั้นที่ 2 — ตั้งชื่อ domain ให้เครื่องที่จะทดสอบรู้จัก
 
-- **ทดสอบจากเครื่องภายใน LAN:** เพิ่ม `/etc/hosts` (หรือ DNS ภายใน):
-  `192.168.x.x  app1.lab.local`
-- **ทดสอบจากเครื่อง llm-server เอง:** `curl -H "Host: app1.lab.local" https://localhost/` ก็พอ
-- TLS ช่วงแรกเป็น self-signed ของ Traefik → ใช้ `curl -k` ได้
+- **ทดสอบจาก Windows (เครื่องนี้):** เพิ่มในไฟล์ hosts:
+  `C:\Windows\System32\drivers\etc\hosts` (เปิด Notepad แบบ Run as administrator):
+  ```
+  127.0.0.1  app1.lab.local
+  ```
+- **ทดสอบจากเครื่องอื่นใน LAN:** เพิ่ม hosts ที่เครื่องนั้นชี้มาที่ IP ของ llm-server
+- **ทดสอบเร็วสุดไม่ต้องตั้ง hosts:** `curl -k -H "Host: app1.lab.local" https://localhost:8443/`
+- TLS ช่วงแรกเป็น self-signed ของ Traefik → ใช้ `curl -k` / กด "Advanced → Continue" ใน browser ได้
+- Port HTTPS คือ **:8443** (เพราะ :443 ถูก Tailscale ใช้อยู่บนเครื่องนี้)
 
 ## ขั้นที่ 3 — รีสตาร์ตและตรวจ
 
 ```bash
 cd ~/path/to/myapp && docker compose up -d     # project ต้องรู้จัก network ใหม่
-curl -kI https://localhost/ -H "Host: app1.lab.local"    # ต้องตอบ 200/302 จาก app
+curl -kI https://localhost:8443/ -H "Host: app1.lab.local"    # ต้องตอบ 200/302 จาก app
 docker compose -f edge-guard/docker-compose.yml exec crowdsec cscli metrics | grep -A2 parser
 ```
 
@@ -64,9 +69,9 @@ docker compose -f edge-guard/docker-compose.yml exec crowdsec cscli metrics | gr
 
 ```bash
 # Path traversal
-curl -k "https://localhost/?file=../../etc/passwd" -H "Host: app1.lab.local" -I
+curl -k "https://localhost:8443/?file=../../etc/passwd" -H "Host: app1.lab.local" -I
 # SQLi probe
-curl -k "https://localhost/?id=1%20OR%201=1" -H "Host: app1.lab.local" -I
+curl -k "https://localhost:8443/?id=1%20OR%201=1" -H "Host: app1.lab.local" -I
 ```
 
 คาดหวัง: `HTTP/1.1 403 Forbidden` (จาก AppSec)
