@@ -57,6 +57,36 @@ AppSec ตอนนี้โหลด **3 ชั้น rules พร้อมก�
   3. CRS ใช้เวลาโหลดครั้งแรก ~30-60 วิ — AppSec port 7422 ขึ้นช้ากว่า LAPI เสมอ
 - หากเจอ FP ตอนผูก route จริง: เปลี่ยน CRS เป็น out-of-band (monitor) ชั่วคราว หรือติดตั้ง exclusion plugin จาก hub เช่น `crowdsecurity/appsec-crs-exclusion-plugin-wordpress`
 
+## เฟส 10c: Funnel (อินเทอร์เน็ต) เข้า EdgeGuard (2026-11-12) ✅
+
+**ช่องโจมตีจากอินเทอร์เน็ตจริง** เดิม: `Funnel → caddy (18112/18480/8101/18110)` ไม่มี WAF เลย
+ตอนนี้: `Funnel :10000 → Traefik :8080 → crowdsec → upstream เดิม`
+
+| Funnel path | ผลทดสอบ (ผ่าน ts.net จริง) |
+|---|---|
+| /desk, /app, /api/*, /login (ERPNext) | 200/301/401 ปกติ ✓ |
+| /forgemind, /demo | 200/308 ✓ |
+| /desk/.env probe | **403** ✓ |
+| /api/v2?id=1 OR 1=1 | **403** ✓ |
+| **Real client IP** | CrowdSec เห็น `100.99.80.84` (XFF trusted) ไม่ใช่ NAT ✓ |
+
+### การตั้งค่าที่เพิ่ม
+1. `traefik/dynamic/funnel.yml` — routers ERPNext/forgemind/demo (priority 1000) → upstream containers ตรง (traefik join 4 networks ใหม่)
+2. Traefik entrypoint `web` + plugin: `forwardedHeaders.trustedIPs = 127.0.0.1/32, 172.16.0.0/12` (docker proxy hairpin + tailscale funnel) → **CrowdSec เห็น IP ผู้โจมตีจริง**
+3. Tailscale serve: 15 paths บน :10000 เปลี่ยน backend → 127.0.0.1:8080 (Traefik)
+
+### Rollback (คืนเส้นทางเดิมทีละ path)
+```bash
+tailscale funnel --bg --https=10000 --set-path=/app http://127.0.0.1:18112/app
+tailscale funnel --bg --https=10000 --set-path=/desk http://127.0.0.1:18112/desk
+# ... (ทุก path กลับไป 18112/8101/18110 ตามเดิม — รายการเต็มอยู่ใน git history ของไฟล์นี้)
+```
+
+### ช่องที่ยังเหลือ (ถัดไป)
+- Funnel `/` → 18480 (insureai) ยังไม่ผ่าน WAF (ต้องหา path ที่ไม่ชน agents-office ก่อน)
+- Funnel `:443` → 127.0.0.1:9000 = host "traefik" process (config ของเดิม ต้องการข้อมูลจากเจ้าของ)
+- `:8443/:8445` tailnet-only (ความเสี่ยงต่ำ — ต้องมี Tailscale identity)
+
 ## เฟส 5-7: Detection + Decision + Defense ครบวงจร (2026-11-12) ✅
 
 **วงจร 6 Agent ปิดครบครั้งแรก:**
