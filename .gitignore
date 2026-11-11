@@ -12,3 +12,4 @@ __pycache__/
 *.zip
 *.log
 tools/_served.html
+tools/_*.yaml
