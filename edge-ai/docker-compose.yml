@@ -1,0 +1,61 @@
+# edge-ai — AI orchestration stack (FastAPI agents)
+#
+# Reuses the EXISTING host Ollama (systemd service on port 11434).
+# Do NOT create a second Ollama container — two instances would fight
+# over the RTX 2060's 12GB VRAM.
+#
+# Prerequisite network (created once on the host):
+#   docker network create edge_net
+#
+# Host Ollama hardening before using Qwen3.5 9B (on the llm-server):
+#   sudo systemctl edit ollama
+#     [Service]
+#     Environment="OLLAMA_MAX_LOADED_MODELS=1"
+#   ollama pull qwen3.5:9b
+
+services:
+  api:
+    build: ./api
+    container_name: edge-ai-api
+    restart: unless-stopped
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      CROWDSEC_LAPI_URL: ${CROWDSEC_LAPI_URL}
+      CROWDSEC_MACHINE_ID: ${CROWDSEC_MACHINE_ID}
+      CROWDSEC_MACHINE_PASSWORD: ${CROWDSEC_MACHINE_PASSWORD}
+      CROWDSEC_BOUNCER_KEY: ${CROWDSEC_BOUNCER_KEY}
+      REDIS_URL: ${REDIS_URL}
+      DEFENSE_ENABLED: ${DEFENSE_ENABLED:-false}
+    extra_hosts:
+      # lets the container reach the host Ollama service
+      - "host.docker.internal:host-gateway"
+    ports:
+      # local access only; the dashboard will be wired to this later
+      - "127.0.0.1:8080:8000"
+    depends_on:
+      - redis
+    networks:
+      - edge_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: edge-ai-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edge_net
+
+volumes:
+  redis_data:
+
+networks:
+  edge_net:
+    external: true

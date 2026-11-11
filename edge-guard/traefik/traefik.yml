@@ -1,0 +1,39 @@
+# Traefik static configuration
+# Docs: https://doc.traefik.io/traefik/
+
+log:
+  level: INFO
+
+api:
+  dashboard: false   # keep off for lab; if needed, bind to localhost with auth
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    # TLS: Traefik serves a default self-signed cert until you add a
+    # certificate resolver or your own certs in ./dynamic/tls.yml
+
+providers:
+  docker:
+    exposedByDefault: false     # routers only for containers with traefik.enable=true
+    network: edge_web           # connect to apps through this network
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  format: json                  # CrowdSec parses this file
+
+experimental:
+  plugins:
+    crowdsec-bouncer-traefik-plugin:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      # Check the plugin catalog for the latest version before going live:
+      # https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin
+      version: v1.3.5

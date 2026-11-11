@@ -1,0 +1,88 @@
+# edge-guard — front-door security stack (runs on llm-server during pilot)
+# Components: Traefik (entry point) + CrowdSec (ban + AppSec WAF) + PostgreSQL/pgvector
+# (Redis lives in edge-ai compose — it is the event bus consumed by the API)
+#
+# Prerequisite networks (create once on the host):
+#   docker network create edge_net   # internal: traefik, crowdsec, api, db, redis
+#   docker network create edge_web   # traefik <-> protected pilot projects
+#
+# Traefik is the ONLY thing publishing 80/443. Pilot projects stop publishing
+# ports and join edge_web instead (see pilot/MIGRATION.md).
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: edge-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik_logs:/var/log/traefik
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Plugin config values come from .env; the middleware "crowdsec"
+      # defined here is referenced by pilot routers as: crowdsec@docker
+      CROWDSEC_BOUNCER_KEY: ${CROWDSEC_BOUNCER_KEY}
+    labels:
+      - traefik.enable=true
+      # --- crowdsec middleware (IP ban check + AppSec WAF) ---
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.enabled=true
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdseclapiurl=http://crowdsec:8080
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.crowdseclapikey=${CROWDSEC_BOUNCER_KEY}
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.appsecenabled=true
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.appsecurl=http://crowdsec:7422
+      - traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer-traefik-plugin.appsecfailureblock=true
+    networks:
+      - edge_net
+      - edge_web
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: edge-crowdsec
+    restart: unless-stopped
+    environment:
+      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules"
+      LOCAL_API_URL: ${LOCAL_API_URL:-http://crowdsec:8080}
+    volumes:
+      - ./crowdsec/acquis.yml:/etc/crowdsec/acquis.yml:ro
+      - crowdsec_db:/var/lib/crowdsec/data
+      - crowdsec_config:/etc/crowdsec
+      - traefik_logs:/var/log/traefik:ro
+    # NOTE: no published ports on purpose.
+    # LAPI (8080) and AppSec (7422) are reachable only inside edge_net.
+    # Admin via: docker compose exec crowdsec cscli ...
+    networks:
+      - edge_net
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: edge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: edgeguard
+      POSTGRES_USER: edgeguard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edgeguard -d edgeguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edge_net
+
+volumes:
+  traefik_logs:
+  crowdsec_db:
+  crowdsec_config:
+  postgres_data:
+
+networks:
+  edge_net:
+    external: true
+  edge_web:
+    external: true

@@ -1,0 +1,16 @@
+# CrowdSec data acquisition
+# 1) Traefik JSON access logs (shared named volume with the traefik container)
+filenames:
+  - /var/log/traefik/access.log
+labels:
+  type: traefik
+
+---
+# 2) AppSec component — WAF engine reached by Traefik plugin on port 7422
+listen_addr: 0.0.0.0
+appsec_port: 7422
+source: appsec
+appsec_config: crowdsecurity/appsec-default
+name: edge-appsec
+labels:
+  type: appsec
