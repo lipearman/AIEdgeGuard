@@ -259,3 +259,27 @@ routers:
 ```
 
 ลำดับแนะนำ: cvat_server → cvat_ui → agents-office → grafana → aitradinghunter (ทดสอบ false positive หลังแต่ละตัว)
+
+---
+
+## สรุปปัญหา Docker port-forwarding + สถานะสุดท้าย (2026-11-12 ดึก)
+
+**อาการ:** หลัง Docker Desktop crash ×5 (วันเดียว) — port publishing บางตัวส่ง traffic
+ไม่ได้เป็นระยะ (000/502/403 สลับกัน) แม้ netstat เห็น LISTENING (com.docker.backend
+PID 4812) — ทดสอบครบแล้ว: NAT mode / mirrored mode / loopback vs TS-IP binds /
+Hyper-V firewall Allow — **ต้อง machine reboot เท่านั้น** (reset com.docker.backend
+port-forwarding state + WSL + network stack)
+
+**ตาราง port ตรวจสอบสุดท้าย (หลัง restart containers อีกรอบ):**
+- 8080 (EdgeGuard traefik) : 200 ✓ recovered
+- 100.99.80.84:8099 (edge-ai) : health ok ✓
+- 100.99.80.84:8085 (LAPI) : alive ✓ (ตอบแล้ว — ตรวจ path ซ้ำหลัง reboot)
+- 100.99.80.84:55000 (Wazuh API HTTPS) : 000 — boot ช้า/forwarding ตาย — retest หลัง reboot
+- 9000 (host traefik native) : 200 ✓ (native process ไม่กระทบ)
+
+**เช็คหลัง reboot (ลำดับ):**
+1. curl http://100.99.80.84:8085/health → ตรวจ LAPI
+2. curl -H Host llm-server http://localhost:8080/api/server/about → 200
+3. curl http://100.99.80.84:8099/health → ok
+4. Wazuh https://100.99.80.84:55000 (HTTPS) → 200
+5. ถ้าครบ = ระบบกลับมาเต็ม 100% — ต่อด้วย Windows agent install (MSI พร้อมที่ wazuh/)
