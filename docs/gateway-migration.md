@@ -730,3 +730,21 @@ curl -X POST ... -H "X-Operation-Key: wrong"                                    
 curl -X POST ... -H "X-Operation-Key: uC7QxyDNrzSTynmUTFeEXfRdnunvEaGM" -d '{"target":"juicelab.lab.local"}' → run จริง
 ```
 **หมายเหตุ:** key นี้เก็บใน edge-ai/.env (gitignored) — ใช้ใน popup ของ dashboard ด้วย
+
+---
+
+## PHP Lab + CVE-2024-4577 ทดสอบจริง (2026-11-12 ดึก) ✅
+
+**เป้ายิงเพิ่มใน lab (หลัง crowdsec middleware เหมือนเดิม):**
+- `dvwa.lab.local` — DVWA (PHP/MySQL classic vulnerable app)
+- `php.lab.local` — PHP 8.3 Apache (surface ทดสอบ payload PHP ล่าสุด)
+
+**ผลโจมตีจริง (attacker catalog +3 เทคนิค PHP):**
+| เทคนิค | ผล |
+|---|---|
+| T1190.php-cgi-4577 (CVE-2024-4577 payload ×3) | **403 ทั้งหมด + alert vpatch-CVE-2024-4577 ×3** ✓ |
+| T1190.php-upload (uploads/*.php probe ×3) | 403 1/3 — อีก 2 path ไม่มี rule ครอบ (404 ผ่าน) — gap เล็ก |
+| T1110.wp-login-bf (DVWA) | catalog เพิ่มแล้ว — ยังไม่ได้ยิง (target dvwa) |
+
+**สรุป:** vpatch-CVE-2024-4577 จับ payload ของ PHP bug ที่ถูกโจมตีหนักสุด 2024-2026 ได้จริง
+(rule จับ URI_FULL มี "?%ad" — soft-hyphen byte) — detection catalog ครบ 10 เทคนิค

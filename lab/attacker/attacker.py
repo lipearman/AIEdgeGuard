@@ -88,6 +88,36 @@ CATALOG = {
             {"method": "GET", "path": "/api"},
         ],
     ),
+    # PHP techniques — CVE-2024-4577 (PHP CGI argument injection) is the
+    # most-exploited PHP bug 2024-2026 (botnets/ransomware, Windows PHP focus);
+    # rule vpatch-CVE-2024-4577 matches URI_FULL containing "?%ad"
+    "T1190.php-cgi-4577": _t(
+        "T1190.php-cgi-4577", "T1190",
+        "PHP CGI argument injection (CVE-2024-4577 payload)",
+        [
+            {"method": "GET", "path": "/index.php?%ADd+allow_url_include%3D1+%ADd+auto_prepend_file%3Dphp%3A%2F%2Finput"},
+            {"method": "POST", "path": "/index.php?%ADd+allow_url_include%3D1+%ADd+auto_prepend_file%3Dphp%3A%2F%2Finput",
+             "body": "<?php system('id'); ?>"},
+            {"method": "GET", "path": "/index.php?%ADd+display_errors%3D1"},
+        ],
+    ),
+    "T1190.php-upload": _t(
+        "T1190.php-upload", "T1190",
+        "PHP upload directory execution probe (wordpress-uploads pattern)",
+        [
+            {"method": "GET", "path": "/wp-content/uploads/shell.php"},
+            {"method": "GET", "path": "/uploads/avatar.php"},
+            {"method": "GET", "path": "/images/shell.php"},
+        ],
+    ),
+    "T1110.wp-login-bf": _t(
+        "T1110.wp-login-bf", "T1110", "WordPress login brute force (6 attempts)",
+        [
+            {"method": "POST", "path": "/wp-login.php",
+             "body": {"log": f"user{i}", "pwd": f"pass{i}"}}
+            for i in range(1, 7)
+        ],
+    ),
 }
 
 

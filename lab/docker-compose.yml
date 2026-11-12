@@ -28,6 +28,41 @@ services:
     networks:
       - edge_web
 
+  # DVWA — classic PHP/MySQL deliberately-vulnerable app (SQLi/XSS/upload chains)
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: lab-dvwa
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dvwalab.rule=Host(`dvwa.lab.local`)
+      - traefik.http.routers.dvwalab.entrypoints=pilot
+      - traefik.http.routers.dvwalab.service=dvwalab
+      - traefik.http.services.dvwalab.loadbalancer.server.port=80
+      - traefik.http.routers.dvwalab.middlewares=crowdsec@docker
+      - traefik.docker.network=edge_web
+    networks:
+      - edge_web
+
+  # PHP 8.3 Apache — PHP surface for CVE-2024-4577 (PHP CGI injection,
+  # the most-exploited PHP bug 2024-2026, targets Windows PHP) payload testing
+  php-cgi-lab:
+    image: php:8.3-apache
+    container_name: lab-php-cgi
+    restart: unless-stopped
+    volumes:
+      - ./php-lab/index.php:/var/www/html/index.php:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.phplab.rule=Host(`php.lab.local`)
+      - traefik.http.routers.phplab.entrypoints=pilot
+      - traefik.http.routers.phplab.service=phplab
+      - traefik.http.services.phplab.loadbalancer.server.port=80
+      - traefik.http.routers.phplab.middlewares=crowdsec@docker
+      - traefik.docker.network=edge_web
+    networks:
+      - edge_web
+
   edge-attacker:
     image: python:3.12-slim
     container_name: edge-attacker
