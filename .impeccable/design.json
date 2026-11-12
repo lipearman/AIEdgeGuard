@@ -1,0 +1,497 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T12:26:21.007135+00:00",
+  "title": "Design System: LACD Defense Console",
+  "extensions": {
+    "scope": "Mission Control and Dashboard / Defense Workspace; preserve their distinct overview and record-oriented layouts.",
+    "sources": [
+      "edge-ai/api/app/static/mission.css",
+      "edge-ai/api/app/static/mission.js",
+      "edge-ai/api/app/static/mission-scene.js",
+      ".impeccable/review/desktop.png",
+      ".impeccable/review/mobile.png",
+      "edge-ai/api/app/static/dashboard.html",
+      "edge-ai/api/app/static/dashboard.css",
+      "edge-ai/api/app/static/dashboard.js",
+      ".impeccable/dashboard-brief.md",
+      ".impeccable/review/dashboard-1440.png",
+      ".impeccable/review/dashboard-768.png",
+      ".impeccable/review/dashboard-390.png",
+      ".impeccable/review/dashboard-inspector-1440.png",
+      ".impeccable/review/dashboard-inspector-390.png"
+    ],
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0227 245.83)",
+          "oklch(26% 0.0227 245.83)",
+          "oklch(38% 0.0227 245.83)",
+          "oklch(49% 0.0227 245.83)",
+          "oklch(61% 0.0227 245.83)",
+          "oklch(72% 0.0227 245.83)",
+          "oklch(84% 0.0227 245.83)",
+          "oklch(95% 0.0227 245.83)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "tonalRamp": [
+          "oklch(15% 0.0325 250.77)",
+          "oklch(26% 0.0325 250.77)",
+          "oklch(38% 0.0325 250.77)",
+          "oklch(49% 0.0325 250.77)",
+          "oklch(61% 0.0325 250.77)",
+          "oklch(72% 0.0325 250.77)",
+          "oklch(84% 0.0325 250.77)",
+          "oklch(95% 0.0325 250.77)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15% 0.0491 242.79)",
+          "oklch(26% 0.0491 242.79)",
+          "oklch(38% 0.0491 242.79)",
+          "oklch(49% 0.0491 242.79)",
+          "oklch(61% 0.0491 242.79)",
+          "oklch(72% 0.0491 242.79)",
+          "oklch(84% 0.0491 242.79)",
+          "oklch(95% 0.0491 242.79)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "tonalRamp": [
+          "oklch(15% 0.0189 248.03)",
+          "oklch(26% 0.0189 248.03)",
+          "oklch(38% 0.0189 248.03)",
+          "oklch(49% 0.0189 248.03)",
+          "oklch(61% 0.0189 248.03)",
+          "oklch(72% 0.0189 248.03)",
+          "oklch(84% 0.0189 248.03)",
+          "oklch(95% 0.0189 248.03)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0433 238.32)",
+          "oklch(26% 0.0433 238.32)",
+          "oklch(38% 0.0433 238.32)",
+          "oklch(49% 0.0433 238.32)",
+          "oklch(61% 0.0433 238.32)",
+          "oklch(72% 0.0433 238.32)",
+          "oklch(84% 0.0433 238.32)",
+          "oklch(95% 0.0433 238.32)"
+        ]
+      },
+      "cyan": {
+        "role": "primary",
+        "displayName": "Cyan",
+        "tonalRamp": [
+          "oklch(15% 0.1451 226.98)",
+          "oklch(26% 0.1451 226.98)",
+          "oklch(38% 0.1451 226.98)",
+          "oklch(49% 0.1451 226.98)",
+          "oklch(61% 0.1451 226.98)",
+          "oklch(72% 0.1451 226.98)",
+          "oklch(84% 0.1451 226.98)",
+          "oklch(95% 0.1451 226.98)"
+        ]
+      },
+      "cyan-soft": {
+        "role": "primary",
+        "displayName": "Cyan Soft",
+        "tonalRamp": [
+          "oklch(15% 0.1024 222.38)",
+          "oklch(26% 0.1024 222.38)",
+          "oklch(38% 0.1024 222.38)",
+          "oklch(49% 0.1024 222.38)",
+          "oklch(61% 0.1024 222.38)",
+          "oklch(72% 0.1024 222.38)",
+          "oklch(84% 0.1024 222.38)",
+          "oklch(95% 0.1024 222.38)"
+        ]
+      },
+      "red": {
+        "role": "secondary",
+        "displayName": "Red",
+        "tonalRamp": [
+          "oklch(15% 0.2063 15.24)",
+          "oklch(26% 0.2063 15.24)",
+          "oklch(38% 0.2063 15.24)",
+          "oklch(49% 0.2063 15.24)",
+          "oklch(61% 0.2063 15.24)",
+          "oklch(72% 0.2063 15.24)",
+          "oklch(84% 0.2063 15.24)",
+          "oklch(95% 0.2063 15.24)"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Amber",
+        "tonalRamp": [
+          "oklch(15% 0.1450 79.69)",
+          "oklch(26% 0.1450 79.69)",
+          "oklch(38% 0.1450 79.69)",
+          "oklch(49% 0.1450 79.69)",
+          "oklch(61% 0.1450 79.69)",
+          "oklch(72% 0.1450 79.69)",
+          "oklch(84% 0.1450 79.69)",
+          "oklch(95% 0.1450 79.69)"
+        ]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Green",
+        "tonalRamp": [
+          "oklch(15% 0.1552 165.84)",
+          "oklch(26% 0.1552 165.84)",
+          "oklch(38% 0.1552 165.84)",
+          "oklch(49% 0.1552 165.84)",
+          "oklch(61% 0.1552 165.84)",
+          "oklch(72% 0.1552 165.84)",
+          "oklch(84% 0.1552 165.84)",
+          "oklch(95% 0.1552 165.84)"
+        ]
+      },
+      "severity-critical": {
+        "role": "secondary",
+        "displayName": "Severity Critical",
+        "tonalRamp": [
+          "oklch(15% 0.2247 16.79)",
+          "oklch(26% 0.2247 16.79)",
+          "oklch(38% 0.2247 16.79)",
+          "oklch(49% 0.2247 16.79)",
+          "oklch(61% 0.2247 16.79)",
+          "oklch(72% 0.2247 16.79)",
+          "oklch(84% 0.2247 16.79)",
+          "oklch(95% 0.2247 16.79)"
+        ]
+      },
+      "severity-high": {
+        "role": "secondary",
+        "displayName": "Severity High",
+        "tonalRamp": [
+          "oklch(15% 0.1686 40.45)",
+          "oklch(26% 0.1686 40.45)",
+          "oklch(38% 0.1686 40.45)",
+          "oklch(49% 0.1686 40.45)",
+          "oklch(61% 0.1686 40.45)",
+          "oklch(72% 0.1686 40.45)",
+          "oklch(84% 0.1686 40.45)",
+          "oklch(95% 0.1686 40.45)"
+        ]
+      },
+      "severity-medium": {
+        "role": "secondary",
+        "displayName": "Severity Medium",
+        "tonalRamp": [
+          "oklch(15% 0.1371 81.10)",
+          "oklch(26% 0.1371 81.10)",
+          "oklch(38% 0.1371 81.10)",
+          "oklch(49% 0.1371 81.10)",
+          "oklch(61% 0.1371 81.10)",
+          "oklch(72% 0.1371 81.10)",
+          "oklch(84% 0.1371 81.10)",
+          "oklch(95% 0.1371 81.10)"
+        ]
+      },
+      "severity-low": {
+        "role": "secondary",
+        "displayName": "Severity Low",
+        "tonalRamp": [
+          "oklch(15% 0.1429 170.24)",
+          "oklch(26% 0.1429 170.24)",
+          "oklch(38% 0.1429 170.24)",
+          "oklch(49% 0.1429 170.24)",
+          "oklch(61% 0.1429 170.24)",
+          "oklch(72% 0.1429 170.24)",
+          "oklch(84% 0.1429 170.24)",
+          "oklch(95% 0.1429 170.24)"
+        ]
+      },
+      "severity-unknown": {
+        "role": "secondary",
+        "displayName": "Severity Unknown",
+        "tonalRamp": [
+          "oklch(15% 0.0479 239.31)",
+          "oklch(26% 0.0479 239.31)",
+          "oklch(38% 0.0479 239.31)",
+          "oklch(49% 0.0479 239.31)",
+          "oklch(61% 0.0479 239.31)",
+          "oklch(72% 0.0479 239.31)",
+          "oklch(84% 0.0479 239.31)",
+          "oklch(95% 0.0479 239.31)"
+        ]
+      },
+      "workspace-muted": {
+        "role": "neutral",
+        "displayName": "Workspace Metric Blue",
+        "tonalRamp": [
+          "oklch(15% 0.0437 236.38)",
+          "oklch(26% 0.0437 236.38)",
+          "oklch(38% 0.0437 236.38)",
+          "oklch(49% 0.0437 236.38)",
+          "oklch(61% 0.0437 236.38)",
+          "oklch(72% 0.0437 236.38)",
+          "oklch(84% 0.0437 236.38)",
+          "oklch(95% 0.0437 236.38)"
+        ]
+      },
+      "drawer-heading": {
+        "role": "neutral",
+        "displayName": "Drawer Heading",
+        "tonalRamp": [
+          "oklch(15% 0.0390 244.71)",
+          "oklch(26% 0.0390 244.71)",
+          "oklch(38% 0.0390 244.71)",
+          "oklch(49% 0.0390 244.71)",
+          "oklch(61% 0.0390 244.71)",
+          "oklch(72% 0.0390 244.71)",
+          "oklch(84% 0.0390 244.71)",
+          "oklch(95% 0.0390 244.71)"
+        ]
+      },
+      "drawer-surface": {
+        "role": "neutral",
+        "displayName": "Drawer Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0335 247.54)",
+          "oklch(26% 0.0335 247.54)",
+          "oklch(38% 0.0335 247.54)",
+          "oklch(49% 0.0335 247.54)",
+          "oklch(61% 0.0335 247.54)",
+          "oklch(72% 0.0335 247.54)",
+          "oklch(84% 0.0335 247.54)",
+          "oklch(95% 0.0335 247.54)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Condensed metrics",
+        "purpose": "Large tabular values."
+      },
+      "headline": {
+        "displayName": "Condensed panel titles",
+        "purpose": "Narrow operational headings."
+      },
+      "body": {
+        "displayName": "Bilingual operational copy",
+        "purpose": "Thai and English text."
+      },
+      "label": {
+        "displayName": "Source labels",
+        "purpose": "Supporting metadata."
+      },
+      "workspace-body": {
+        "displayName": "Workspace body",
+        "purpose": "Readable 14px Dashboard body."
+      },
+      "workspace-record": {
+        "displayName": "Workspace records",
+        "purpose": "12px table/supporting copy."
+      },
+      "workspace-control": {
+        "displayName": "Workspace controls",
+        "purpose": "11px compact metadata and controls."
+      }
+    },
+    "shadows": [
+      {
+        "name": "navigation-active",
+        "value": "inset 0 -2px #16bdf7",
+        "purpose": "Active navigation lower stroke."
+      }
+    ],
+    "motion": [
+      {
+        "name": "scene-overlay",
+        "value": "segmented rotating rings; comet trails; pulsing beacons; cyan scan beam",
+        "purpose": "Mission Control only. Decorative Three.js effects aligned to contained artwork; raster image stays static."
+      },
+      {
+        "name": "meter",
+        "value": "width .8s ease-out",
+        "purpose": "Metric bar updates; no transition under reduced motion."
+      },
+      {
+        "name": "overlay-render-limit",
+        "value": "33ms minimum frame interval; DPR <= 1.5; elapsed-time clock",
+        "purpose": "Mission Control only. Pause/resume without timeline jumps; stop frame loop while hidden or offscreen."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "autoplay at .35 elapsed-time speed; explicit Play/Pause control",
+        "purpose": "Mission Control only. Current Mission scene behavior; reduced-motion CSS disables scene/meter transitions and smooth scrolling."
+      },
+      {
+        "name": "overlay-lifecycle",
+        "value": "persisted pagehide suspends; persisted pageshow resizes and restarts; noncached pagehide disposes",
+        "purpose": "Mission Control only. Preserve GPU resources across BFCache navigation and release them on noncached navigation."
+      },
+      {
+        "name": "static-fallback",
+        "value": "static raster; visible disabled Animation unavailable control",
+        "purpose": "Mission Control only. Preserve the artwork on Three.js/WebGL failure or context loss; restoration re-enables the control."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-min",
+        "value": "1700px"
+      },
+      {
+        "name": "two-column-max",
+        "value": "1199px"
+      },
+      {
+        "name": "mobile-max",
+        "value": "700px"
+      },
+      {
+        "name": "compact-mobile-max",
+        "value": "380px"
+      },
+      {
+        "name": "workspace-metrics-max",
+        "value": "800px"
+      },
+      {
+        "name": "workspace-labeled-rows-max",
+        "value": "600px"
+      }
+    ],
+    "dashboardBackground": {
+      "asset": "edge-ai/api/app/static/media/mission-shield-world.png",
+      "placement": "Fixed decorative page pseudo-element; noninteractive; opaque record panels in front.",
+      "desktop": "right -100px / auto 650px no-repeat",
+      "mobile": "At max-width 600px: 65% -100px / auto 500px no-repeat",
+      "overlays": "Dark horizontal gradients protect text; vertical gradient fades artwork into midnight page.",
+      "runtime": "Static CSS background; no Three.js, scene script, standalone scene caption or animation control."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Controlled lab action; confirmation remains in the application.",
+      "html": "<button class=\"ds-primary\">Run controlled test</button>",
+      "css": ".ds-primary{font-family:var(--font,'IBM Plex Sans Thai',sans-serif);background:#0a2d43;color:#c4eeff;border:1px solid #1a6c93;border-radius:4px;padding:7px 10px;font-size:11px;cursor:pointer}.ds-primary:hover{background:#124562;border-color:#29c6ff}.ds-primary:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}.ds-primary:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "Quiet button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Mission scene motion and shared dialog secondary control; Dashboard has no animation control.",
+      "html": "<button class=\"ds-quiet\">Pause animation</button>",
+      "css": ".ds-quiet{font-family:var(--font,'IBM Plex Sans Thai',sans-serif);background:#071a29;color:var(--cyan-soft,#78d9fa);border:1px solid #1b3e54;border-radius:4px;padding:5px 8px;font-size:9px;cursor:pointer}.ds-quiet:hover{background:#12364b}.ds-quiet:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}"
+    },
+    {
+      "name": "Refresh icon button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "Compact icon action with explicit accessible name.",
+      "html": "<button class=\"ds-icon\" aria-label=\"Refresh\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 8a8 8 0 1 0 0 8M20 3v5h-5\"/></svg></button>",
+      "css": ".ds-icon{display:grid;place-items:center;background:transparent;border:1px solid #183449;border-radius:5px;width:32px;height:32px;color:var(--cyan-soft,#78d9fa);cursor:pointer}.ds-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}.ds-icon:hover{background:#10273a}.ds-icon:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}"
+    },
+    {
+      "name": "Mission navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Compact segmented navigation with active lower stroke.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Mission\"><a href=\"#mission\" aria-current=\"page\">MISSION CONTROL</a><a href=\"#threats\">THREATS</a></nav>",
+      "css": ".ds-nav{font-family:var(--font,'IBM Plex Sans Thai',sans-serif);display:flex;gap:2px;border:1px solid #0d2233;border-radius:6px;padding:3px;font-size:10px;letter-spacing:.04em;overflow:auto}.ds-nav a{padding:9px 15px;color:#a4bbcc;text-decoration:none;border-radius:4px;white-space:nowrap}.ds-nav a:hover{background:#0b2132;color:var(--text,#e4effa)}.ds-nav a[aria-current]{background:#0a2940;box-shadow:inset 0 -2px #16bdf7;color:#e4f5ff}.ds-nav a:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}"
+    },
+    {
+      "name": "Severity select",
+      "kind": "input",
+      "refersTo": "select",
+      "description": "Native filter for the loaded incident sample.",
+      "html": "<label class=\"ds-select-label\">Severity <select class=\"ds-select\"><option>All severities</option><option>High / Critical</option><option>Medium</option><option>Low</option></select></label>",
+      "css": ".ds-select-label{font-family:var(--font,'IBM Plex Sans Thai',sans-serif);font-size:10px;color:var(--muted,#8daabe)}.ds-select{font-family:var(--font,'IBM Plex Sans Thai',sans-serif);margin-left:8px;border:1px solid #214457;border-radius:3px;background:#081e2d;color:var(--cyan-soft,#78d9fa);font-size:9px;padding:3px 5px;max-width:120px}.ds-select:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}"
+    },
+    {
+      "name": "Severity badge",
+      "kind": "chip",
+      "refersTo": "severity-badge",
+      "description": "Severity label; shown here in the shared high/critical treatment.",
+      "html": "<span class=\"ds-badge\">HIGH</span>",
+      "css": ".ds-badge{display:inline-block;font-family:var(--display,\"Barlow Condensed\",sans-serif);font-size:10px;min-width:43px;text-align:center;padding:2px 4px;border-radius:3px;line-height:1.3;background:#5c1c2c;color:#ffb4c1}"
+    },
+    {
+      "name": "Evidence panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat bordered card with a compact heading and source note.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-heading\"><h2>THREAT OVERVIEW</h2><p>Latest incident sample</p></header><p class=\"ds-copy\">Loaded evidence appears here.</p></section>",
+      "css": ".ds-panel{font-family:var(--font,'IBM Plex Sans Thai',sans-serif);background:var(--panel,#06121f);border:1px solid var(--line,#163145);border-radius:8px;overflow:hidden;color:var(--text,#e4effa);max-width:340px}.ds-heading{margin:0 15px;padding:13px 0 10px;border-bottom:1px solid #102838}.ds-heading h2{margin:0;font-family:var(--display,\"Barlow Condensed\",sans-serif);font-size:16px;font-weight:600;line-height:1.2;letter-spacing:.035em}.ds-heading p{margin:3px 0 0;font-size:10px;color:var(--muted,#8daabe)}.ds-copy{margin:15px;font-size:11px}"
+    },
+    {
+      "name": "Workspace search",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Server-backed search for records.",
+      "html": "<label class=\"ds-search\">Search records<input placeholder=\"IP, URL or message\"></label>",
+      "css": ".ds-search{display:block;background:#030e18;border:1px solid #234459;border-radius:5px;padding:8px 11px;color:var(--muted,#8daabe);font:11px var(--font,'IBM Plex Sans Thai',sans-serif)}.ds-search input{display:block;width:100%;height:39px;border:0;background:none;color:var(--text,#e4effa);font:14px var(--font,'IBM Plex Sans Thai',sans-serif)}.ds-search input::placeholder{color:#8eacc0}.ds-search input:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:0}"
+    },
+    {
+      "name": "Record inspector action",
+      "kind": "button",
+      "refersTo": "record-open",
+      "description": "Open captured evidence without widening the record table.",
+      "html": "<button class=\"ds-record-open\">Inspect record</button>",
+      "css": ".ds-record-open{color:var(--cyan-soft,#78d9fa);border:1px solid #24526b;border-radius:4px;background:#092539;padding:6px 10px;font:500 12px var(--display,\"Barlow Condensed\",sans-serif);letter-spacing:.02em;cursor:pointer}.ds-record-open:hover{background:#124864;border-color:var(--cyan,#22c9ff)}.ds-record-open:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}"
+    },
+    {
+      "name": "Evidence surface",
+      "kind": "custom",
+      "refersTo": "evidence-drawer",
+      "description": "Inspector typography and visible capture limitation, shown as a contained specimen.",
+      "html": "<section class=\"ds-drawer\"><header><h2>HTTP request metadata</h2></header><div><h3>HTTP body / payload</h3><p>HTTP body and PCAP were not captured for this record.</p></div></section>",
+      "css": ".ds-drawer{background:#061421;color:var(--text,#e4effa);font:14px/1.5 var(--font,\"IBM Plex Sans Thai\",sans-serif);border-left:1px solid #2b566e;max-width:650px}.ds-drawer header{padding:23px 24px 18px;background:#071a29;border-bottom:1px solid var(--line,#163145)}.ds-drawer h2{margin:0;font:600 29px var(--display,\"Barlow Condensed\",sans-serif)}.ds-drawer>div{padding:22px 24px}.ds-drawer h3{margin:0 0 12px;font:600 21px var(--display,\"Barlow Condensed\",sans-serif)}.ds-drawer p{border:1px dashed #315168;padding:14px;border-radius:4px;font-size:12px;color:var(--muted,#8daabe);line-height:1.8}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Local Defense Console",
+    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
+    "keyCharacteristics": [
+      "Dense operational hierarchy with a dominant central scene.",
+      "Local bilingual fonts, thin cyan line icons and tabular metrics.",
+      "Generated 3D raster art with restrained decorative Three.js overlays.",
+      "Visible sample scope, sensor coverage and human approval state."
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Rule",
+        "body": "Every health or severity color must have a readable status, count or category beside it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Frame Rule",
+        "body": "Keep panels flat and borders restrained; reserve luminous depth for the generated art and its decorative overlay.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep sensor coverage and sample scope adjacent to their metrics.",
+      "Do use the central raster artwork as the static visual foundation.",
+      "Do preserve the mobile reading order: visibility, scene and metrics, incidents, then AI and health.",
+      "Do keep keyboard focus visible and state labels readable without color."
+    ],
+    "donts": [
+      "Don't let the static 3D background dominate Dashboard records or obscure capture limitations.",
+      "Don't present decorative world paths as attacker geolocation.",
+      "Don't turn a green gateway state into a claim of automatic enforcement or complete network coverage.",
+      "Don't invent compliance badges, endpoint inventories or totals beyond the loaded sample."
+    ]
+  }
+}

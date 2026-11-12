@@ -22,6 +22,15 @@ from app.integrations import crowdsec_client, db
 STREAM = "edge:events"
 
 
+async def publish_pending(r) -> int:
+    """Publish persisted events; a crash may duplicate a delivery, never lose it."""
+    rows = await db.list_unqueued()
+    for payload in rows:
+        await r.xadd(STREAM, {"json": json.dumps(payload)})
+        await db.mark_queued(payload["event_id"])
+    return len(rows)
+
+
 def _normalize(alert: dict) -> dict:
     """Map a LAPI alert into our incident shape.
 
@@ -36,7 +45,9 @@ def _normalize(alert: dict) -> dict:
     kind = str(alert.get("kind") or "unknown")
     severity = "high" if kind in ("waf", "ban") else "medium"
     reason = str(alert.get("message") or alert.get("scenario") or "")
-    alert_id = f"c-{alert.get('id')}"  # LAPI ids are ints; prefix avoids clashing with EVT-*
+    alert_id = (
+        f"c-{alert.get('id')}"  # LAPI ids are ints; prefix avoids clashing with EVT-*
+    )
     return {
         "alert_id": alert_id,
         "source": "crowdsec",
@@ -50,7 +61,9 @@ def _normalize(alert: dict) -> dict:
 
 async def run() -> None:
     """Poll loop. Cancelled on app shutdown."""
-    r = aioredis.from_url(settings.redis_url, socket_timeout=None, decode_responses=True)
+    r = aioredis.from_url(
+        settings.redis_url, socket_timeout=None, decode_responses=True
+    )
     interval = max(10, settings.poll_interval_seconds)
     sys.stderr.write(f"[watcher] started, poll every {interval}s\n")
     while True:
@@ -60,21 +73,19 @@ async def run() -> None:
             for alert in alerts:
                 normalized = _normalize(alert)
                 if await db.insert_incident(normalized) is not None:
-                    await r.xadd(
-                        STREAM,
-                        {"json": json.dumps(
-                            {"event_id": normalized["alert_id"],
-                             "source": normalized["source"],
-                             "kind": normalized["kind"],
-                             "severity": normalized["severity"],
-                             "reason": normalized["reason"]},
-                            ensure_ascii=False)},
-                    )
                     new_count += 1
             if new_count:
-                sys.stderr.write(f"[watcher] ingested {new_count}/{len(alerts)} alerts\n")
+                sys.stderr.write(
+                    f"[watcher] ingested {new_count}/{len(alerts)} alerts\n"
+                )
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 — poller must survive errors
             sys.stderr.write(f"[watcher] poll failed: {exc}\n")
+        try:
+            await publish_pending(r)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — leave the durable outbox for the next tick
+            sys.stderr.write(f"[watcher] queue publish failed (will retry): {exc}\n")
         await asyncio.sleep(interval)

@@ -1,0 +1,167 @@
+# EDGEGUARD_PREVIEW_AUTH=disabled
+# Funnel ingress — EdgeGuard protects the EXTERNAL (internet-facing) paths
+# that used to go: Funnel -> 127.0.0.1:18112/18110/8101 (NO protection).
+# Now: Funnel -> tailscale serve -> Traefik :8080 -> crowdsec -> upstream.
+#
+# Host: llm-server.tail923b9a.ts.net (Tailscale Funnel :10000)
+# NOTE: the root "/" of every tailscale port is migrated too — see the
+# funnel-root-* routers below (each has its own entrypoint, because all
+# tailscale ports share the same Host header).
+# Priorities: 1000 beats agents-office (default ~85) for these specific paths.
+# SECURITY: no router may skip crowdsec. The old `*-vercel` routers matched
+# `Origin: *vercel.app` and had no WAF — but Origin is client-controlled, so
+# anyone could bypass the WAF by sending `Origin: https://evil.vercel.app`.
+# They were removed 2026-11-12 (verified: probe + spoofed Origin → 403).
+#
+# REQUIRED: every tailscale handler must REPEAT its mount path in the proxy
+# target, e.g.  tailscale funnel --bg --https=10000 --set-path=/desk \
+#                    http://127.0.0.1:8080/desk
+# tailscale serve/funnel STRIPS the matched --set-path before proxying. With a
+# target of plain http://127.0.0.1:8080 Traefik receives "/" for every path and
+# the Host-only agentsoffice router swallows the request (all funnel paths show
+# the agents-office page). Verified 2026-11-12 with a path-echo probe.
+http:
+  routers:
+    funnel-erpnext:
+      entryPoints:
+        - web
+      middlewares:
+        - crowdsec@docker
+      service: funnel-maingateway
+      rule: "Host(`llm-server.tail923b9a.ts.net`) && (PathPrefix(`/app`) || PathPrefix(`/desk`) || PathPrefix(`/files`) || PathPrefix(`/login`) || PathPrefix(`/assets`) || PathPrefix(`/api/v2`) || PathPrefix(`/api/method`) || PathPrefix(`/api/resource`) || PathPrefix(`/method`) || PathPrefix(`/socket.io`) || PathPrefix(`/favicon.ico`) || PathPrefix(`/website_script.js`) || PathPrefix(`/erpnext`))"
+      priority: 1000
+    funnel-forgemind:
+      entryPoints:
+        - web
+      middlewares:
+        - crowdsec@docker
+      service: funnel-forgemind
+      rule: "Host(`llm-server.tail923b9a.ts.net`) && PathPrefix(`/forgemind`)"
+      priority: 1000
+    funnel-demo:
+      entryPoints:
+        - web
+      middlewares:
+        - crowdsec@docker
+      service: funnel-demo
+      rule: "Host(`llm-server.tail923b9a.ts.net`) && PathPrefix(`/demo`)"
+      priority: 1000
+    # EdgeGuard dashboards/API (tailnet via serve :8443) —
+    # https://llm-server.tail923b9a.ts.net:8443/AIEdgeGuard/DashBoard + /mission
+    # WAF remains enforced. Basic Auth can be temporarily detached from the
+    # canonical route for the user-authorized public web/API preview.
+    # Restore: python tools/set_preview_auth.py --enable, then reload Traefik.
+    funnel-aiedge:
+      entryPoints:
+        - web
+        - funnelroot443
+        - funnelroot8443
+      middlewares:
+        - crowdsec@docker
+        - strip-aiedge
+      service: edge-ai-api
+      rule: "Host(`llm-server.tail923b9a.ts.net`) && PathPrefix(`/AIEdgeGuard`)"
+      priority: 1000
+
+    # EdgeGuard dashboards/API via tailnet alias /aiedge (same backend as /AIEdgeGuard)
+    funnel-aiedge-lower:
+      entryPoints:
+        - web
+      middlewares:
+        - crowdsec@docker
+        - aiedge-auth
+        - strip-aiedge-lower
+      service: edge-ai-api
+      rule: "Host(`llm-server.tail923b9a.ts.net`) && PathPrefix(`/aiedge`)"
+      priority: 1000
+
+    # ---- Root-path migrations (one dedicated entrypoint per tailscale port) ----
+    # Each tailscale port's "/" has its own entrypoint so a catch-all router
+    # cannot steal traffic from another port (all ports share the same Host).
+    funnel-root-10000:
+      entryPoints:
+        - funnelroot10000
+      middlewares:
+        - crowdsec@docker
+      service: funnel-insureai
+      rule: "Host(`llm-server.tail923b9a.ts.net`)"
+      priority: 1
+    funnel-root-443:
+      entryPoints:
+        - funnelroot443
+      middlewares:
+        - crowdsec@docker
+      service: funnel-portal
+      rule: "Host(`llm-server.tail923b9a.ts.net`)"
+      priority: 1
+    funnel-root-8443:
+      entryPoints:
+        - funnelroot8443
+      middlewares:
+        - crowdsec@docker
+      service: funnel-forgemind-web
+      rule: "Host(`llm-server.tail923b9a.ts.net`)"
+      priority: 1
+    funnel-root-8445:
+      entryPoints:
+        - funnelroot8445
+      middlewares:
+        - crowdsec@docker
+      service: funnel-erpnext-gateway
+      rule: "Host(`llm-server.tail923b9a.ts.net`)"
+      priority: 1
+
+  middlewares:
+    strip-aiedge-lower:
+      stripPrefix:
+        prefixes:
+          - /aiedge
+    strip-aiedge:
+      stripPrefix:
+        prefixes:
+          - /AIEdgeGuard
+    # HTTP Basic auth for the EdgeGuard dashboard/API.
+    # Rotate: generate a new bcrypt hash and replace the entry below, then
+    # `docker restart traefik` (file-provider changes on a Windows bind mount
+    # are not always picked up by fsnotify).
+    #   python -c "import bcrypt;print(bcrypt.hashpw(b'NEWPASS',bcrypt.gensalt(rounds=10)).decode())"
+    aiedge-auth:
+      basicAuth:
+        users:
+          - "admin:$2b$10$tyYD/jsheM09lTc5QYJCU.TKRbPqwc3uE8ymIzBbe0EChn5XbjokK"
+
+  services:
+    funnel-maingateway:
+      loadBalancer:
+        servers:
+          - url: "http://main-gateway:8080"
+    funnel-forgemind:
+      loadBalancer:
+        servers:
+          - url: "http://forgemind-gateway:8080"
+    funnel-demo:
+      loadBalancer:
+        servers:
+          - url: "http://forgemind-demo-portal:8100"
+    edge-ai-api:
+      loadBalancer:
+        servers:
+          - url: "http://edge-ai-api:8000"
+    # Root-path targets (see funnel-root-* routers). Host-published services use
+    # host.docker.internal so they keep working without extra docker networks.
+    funnel-insureai:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:18480"
+    funnel-portal:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:9000"
+    funnel-forgemind-web:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3100"
+    funnel-erpnext-gateway:
+      loadBalancer:
+        servers:
+          - url: "http://erpnext-gateway-1:80"

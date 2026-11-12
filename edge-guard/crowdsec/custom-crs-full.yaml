@@ -9,6 +9,8 @@ inband_rules:
   - crowdsecurity/vpatch-*
   - crowdsecurity/generic-*
   - crowdsecurity/crs
+# NOTE: edgeguard/allow-vercel-frontend (WAF skip for own Vercel frontends)
+# permanently excluded: Origin/Referer are client-controlled, not proof of trust.
 outofband_rules:
   - crowdsecurity/experimental-*
   - crowdsecurity/appsec-generic-test

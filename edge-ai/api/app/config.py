@@ -48,5 +48,14 @@ class Settings(BaseSettings):
     # --- Safety switch (legacy stub, superseded by decisions workflow) ---
     defense_enabled: bool = False
 
+    telemetry_enabled: bool = True
+    sensor_directory: str = "/var/lib/edgeguard/sensors"
+    wazuh_alerts_path: str = "/var/log/wazuh/alerts/alerts.json"
+
+    request_history_enabled: bool = True
+    request_log_path: str = "/var/log/traefik/access.log"
+    request_max_rows: int = 100000
+    request_retention_days: int = 7
+
 
 settings = Settings()

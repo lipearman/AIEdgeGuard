@@ -1,356 +1,478 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EdgeGuard — Local AI Cyber Defense</title>
-<style>
-  :root {
-    --bg: #0b1020; --panel: #121a2f; --panel2: #0e1526; --line: #1e2a4a;
-    --text: #d7e0f5; --muted: #8492b8; --accent: #4f8cff;
-    --ok: #2ecc8f; --warn: #ffb454; --bad: #ff5d7a; --purple: #a78bfa;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text);
-         font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; }
-  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px;
-           border-bottom: 1px solid var(--line); background: var(--panel2);
-           position: sticky; top: 0; z-index: 5; }
-  header h1 { font-size: 18px; letter-spacing: .5px; }
-  header h1 span { color: var(--accent); }
-  .chip { padding: 3px 10px; border-radius: 12px; font-size: 12px;
-          border: 1px solid var(--line); background: var(--panel); }
-  .chip.ok { color: var(--ok); border-color: var(--ok); }
-  .chip.bad { color: var(--bad); border-color: var(--bad); }
-  .chip.mode { color: var(--warn); border-color: var(--warn); }
-  #refreshInfo { margin-left: auto; color: var(--muted); font-size: 12px; }
-  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#030a12" />
+    <title>LACD — Defense Workspace</title>
+    <link rel="stylesheet" href="static/fonts/mission-fonts.css" />
+    <link rel="stylesheet" href="static/mission.css" />
+    <link rel="stylesheet" href="static/dashboard.css?v=20261112-background" />
+    <link rel="stylesheet" href="static/triage.css?v=20261112" />
+    <script src="static/triage.js?v=20261112" defer></script>
+    <script src="static/dashboard.js?v=20261112-workspace" defer></script>
+  </head>
+  <body class="dashboard-page">
+    <svg
+      class="icon-defs"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <symbol id="i-shield" viewBox="0 0 24 24">
+          <path d="m12 2 8 3v6c0 5-5 8-8 10-3-2-8-5-8-10V5Z" />
+          <path d="m8 11 3 3 5-6" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+          <path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" />
+        </symbol>
+        <symbol id="i-network" viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="3" />
+          <circle cx="5" cy="19" r="3" />
+          <circle cx="19" cy="19" r="3" />
+          <path d="m10 8-4 8m8-8 4 8M8 19h8" />
+        </symbol>
+        <symbol id="i-chip" viewBox="0 0 24 24">
+          <rect x="5" y="5" width="14" height="14" rx="2" />
+          <path
+            d="M9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3M9 9h6v6H9Z"
+          />
+        </symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M5 12h14m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="10" cy="10" r="6" />
+          <path d="m15 15 6 6" />
+        </symbol>
+        <symbol id="i-close" viewBox="0 0 24 24">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </symbol>
+        <symbol id="i-file" viewBox="0 0 24 24">
+          <path d="M5 3h10l4 4v14H5Zm9 0v5h5M8 12h8m-8 4h6" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2" />
+        </symbol>
+        <symbol id="i-database" viewBox="0 0 24 24">
+          <ellipse cx="12" cy="5" rx="8" ry="3" />
+          <path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0" />
+        </symbol>
+        <symbol id="i-pulse" viewBox="0 0 24 24">
+          <path d="M2 12h5l3-8 4 16 3-8h5" />
+        </symbol>
+      </defs>
+    </svg>
+    <a class="skip-link" href="#records">ข้ามไปยังตารางข้อมูล</a>
+    <header class="topbar">
+      <a class="brand" id="brandLink" href="mission"
+        ><svg class="brand-icon"><use href="#i-shield" /></svg
+        ><span
+          ><strong>LACD <span class="brand-ai">EdgeGuard</span></strong
+          ><small>Local AI Cyber Defense</small></span
+        ></a
+      >
+      <nav class="main-nav" aria-label="Workspace navigation">
+        <a class="active" href="#requests">DEFENSE WORKSPACE</a
+        ><a id="missionLink" href="mission"
+          >MISSION CONTROL <svg><use href="#i-arrow" /></svg
+        ></a>
+      </nav>
+      <div class="header-tools">
+        <span id="connectionState" class="connection"
+          ><i class="dot pending"></i>CONNECTING</span
+        ><button
+          id="refreshDashboard"
+          class="icon-button"
+          aria-label="โหลดข้อมูลใหม่"
+        >
+          <svg><use href="#i-refresh" /></svg></button
+        ><time id="clock">--:--:-- UTC</time>
+      </div>
+    </header>
+    <main class="dashboard-main">
+      <section class="dashboard-intro" aria-labelledby="workspaceTitle">
+        <div class="intro-copy">
+          <h1 id="workspaceTitle">Defense workspace<span>.</span></h1>
+          <p>สำรวจทราฟฟิก ตรวจหลักฐาน และจัดการการตอบสนองจากข้อมูลจริงในระบบ</p>
+          <div id="layerStatus" class="layer-tags">
+            <span>กำลังตรวจสถานะ 3 ชั้น…</span>
+          </div>
+          <div class="intro-bottom">
+            <span id="responseMode" class="mode-label">Checking policy…</span>
+            <div id="serviceStatus" class="service-tags"></div>
+          </div>
+        </div>
+      </section>
+      <section class="workspace-metrics" aria-label="Database totals">
+        <div class="workspace-metric">
+          <svg><use href="#i-network" /></svg>
+          <div>
+            <span>STORED REQUESTS</span><strong id="statRequests">—</strong
+            ><small id="requestScope">Retained HTTP history</small>
+          </div>
+        </div>
+        <div class="workspace-metric">
+          <svg><use href="#i-pulse" /></svg>
+          <div>
+            <span>INCIDENTS</span><strong id="statIncidents">—</strong
+            ><small id="analyzedScope">All stored incidents</small>
+          </div>
+        </div>
+        <div class="workspace-metric">
+          <svg><use href="#i-lock" /></svg>
+          <div>
+            <span>AWAITING APPROVAL</span
+            ><strong id="statPending" class="text-amber">—</strong
+            ><small>Human-gated responses</small>
+          </div>
+        </div>
+        <div class="workspace-metric">
+          <svg><use href="#i-database" /></svg>
+          <div>
+            <span>CAMPAIGNS</span><strong id="statCampaigns">—</strong
+            ><small>Correlated incident groups</small>
+          </div>
+        </div>
+      </section>
 
-  .pipeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
-              margin-bottom: 20px; }
-  .stage { background: var(--panel); border: 1px solid var(--line);
-           border-radius: 10px; padding: 12px; text-align: center; position: relative; }
-  .stage .num { font-size: 26px; font-weight: 700; color: var(--accent); }
-  .stage .lbl { color: var(--muted); font-size: 12px; margin-top: 4px; }
-  .stage::after { content: '▶'; position: absolute; right: -13px; top: 45%;
-                  color: var(--line); font-size: 12px; }
-  .stage:last-child::after { content: ''; }
+      <section
+        id="records"
+        class="records-panel"
+        aria-labelledby="recordsTitle"
+      >
+        <div class="records-heading">
+          <div>
+            <h2 id="recordsTitle">Traffic & evidence</h2>
+            <p id="recordDescription">HTTP requests observed by the gateway</p>
+          </div>
+          <span id="refreshState" role="status">กำลังโหลด…</span>
+        </div>
+        <div
+          id="recordTabs"
+          class="record-tabs"
+          role="tablist"
+          aria-label="ประเภทข้อมูล"
+        >
+          <button
+            id="tab-requests"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="true"
+            data-kind="requests"
+          >
+            Traffic <span id="trafficBadge"></span></button
+          ><button
+            id="tab-incidents"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="false"
+            data-kind="incidents"
+          >
+            Incidents</button
+          ><button
+            id="tab-triage"
+            role="tab"
+            aria-controls="triageWorkspace"
+            aria-selected="false"
+            data-kind="triage"
+          >
+            AI Triage</button
+          ><button
+            id="tab-approvals"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="false"
+            data-kind="approvals"
+          >
+            Approvals <span id="pendingBadge"></span></button
+          ><button
+            id="tab-campaigns"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="false"
+            data-kind="campaigns"
+          >
+            Campaigns</button
+          ><button
+            id="tab-decisions"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="false"
+            data-kind="decisions"
+          >
+            Decisions</button
+          ><button
+            id="tab-attacks"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="false"
+            data-kind="attacks"
+          >
+            Attack Lab</button
+          ><button
+            id="tab-policy"
+            role="tab"
+            aria-controls="dataView"
+            aria-selected="false"
+            data-kind="policy"
+          >
+            Policy
+          </button>
+        </div>
+        <section
+          id="triageWorkspace"
+          class="triage-workspace"
+          role="tabpanel"
+          aria-labelledby="tab-triage"
+          hidden
+        >
+          <div class="triage-toolbar">
+            <p>
+              Wazuh SIEM → Local Ollama
+              <span class="triage-tag">SSE · Redis cache</span>
+            </p>
+            <div class="triage-tools">
+              <label
+                >Report language<select id="triageLanguage">
+                  <option value="th">ไทย + technical EN</option>
+                  <option value="en">English</option>
+                </select></label
+              >
+              <button id="triageInspect" class="quiet-button" disabled>
+                Inspect cleaned payload
+              </button>
+              <button
+                id="triageSettingsToggle"
+                class="quiet-button"
+                aria-expanded="false"
+                aria-controls="triageSettings"
+              >
+                Ollama settings
+              </button>
+            </div>
+          </div>
+          <div id="triageSettings" class="triage-settings" hidden>
+            <label
+              >Installed model<select id="triageModel">
+                <option value="">Server default</option>
+              </select></label
+            >
+            <button id="triageReloadModels" class="quiet-button">
+              Reload models
+            </button>
+            <p id="triageConfigStatus" role="status">
+              Model preference applies only to this browser session.
+            </p>
+          </div>
+          <div class="triage-columns">
+            <section class="triage-queue" aria-labelledby="triageQueueTitle">
+              <div class="triage-section-heading">
+                <div>
+                  <h3 id="triageQueueTitle">SIEM priority queue</h3>
+                  <p>เลือก alert เพื่อวิเคราะห์หลักฐาน</p>
+                </div>
+                <button id="triageSync" class="quiet-button">Sync queue</button>
+              </div>
+              <label class="triage-level"
+                >Minimum Wazuh level<select id="triageLevel">
+                  <option value="7">7 · Priority</option>
+                  <option value="5">5 · All ingested</option>
+                  <option value="10">10 · High priority</option>
+                  <option value="12">12 · Critical</option>
+                </select></label
+              >
+              <p id="triageQueueStatus" class="triage-status" role="status">
+                กำลังโหลดคิว…
+              </p>
+              <div id="triageQueue" class="triage-queue-list"></div>
+              <div class="triage-queue-pager">
+                <button id="triagePrevious" class="quiet-button" disabled>
+                  Previous</button
+                ><span id="triagePage">—</span
+                ><button id="triageNext" class="quiet-button" disabled>
+                  Next
+                </button>
+              </div>
+            </section>
+            <section class="triage-report" aria-labelledby="triageReportTitle">
+              <div class="triage-section-heading">
+                <div>
+                  <h3 id="triageReportTitle">SOC analyst triage report</h3>
+                  <p id="triageSelection">เลือก Wazuh alert จากคิวด้านซ้าย</p>
+                  <p id="triageModelInfo">
+                  Not generated · local Ollama
+                  </p>
+                </div>
+              </div>
+              <div class="triage-report-actions">
+                <button id="triageStart" class="workspace-button" disabled>
+                  Stream analysis</button
+                ><button id="triageStop" class="quiet-button" disabled>
+                  Stop</button
+                ><label class="triage-checkbox"
+                  ><input id="triageBypass" type="checkbox" /> Bypass
+                  cache</label
+                >
+              </div>
+              <div class="triage-host">
+                <label
+                  >Hostname hint
+                  <input
+                    id="triageHostname"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Optional analyst context" /></label
+                ><small
+                  >ข้อมูลประกอบจากผู้วิเคราะห์ ไม่เปลี่ยนชื่อ host ใน
+                  Wazuh</small
+                >
+              </div>
+              <p id="triageStreamStatus" class="triage-status" role="status">
+                Ready · ข้อเสนอแนะเท่านั้น ไม่มีการบล็อกอัตโนมัติ
+              </p>
+              <details id="triagePayload">
+              <summary>Cleaned model context</summary>
+                <p id="triagePayloadStats"></p>
+                <pre id="triagePayloadBody" class="evidence-code">
+เลือก alert เพื่อดู context ที่ตัดทอนและปกปิด secret patterns แล้ว</pre
+                >
+              </details>
+              <div
+                id="triageReport"
+                class="triage-report-text"
+                tabindex="0"
+                aria-label="AI triage report"
+              >
+                บทวิเคราะห์จะแสดงที่นี่เมื่อกด Stream analysis
+              </div>
+              <p class="triage-disclaimer">
+                AI อาจวิเคราะห์ผิด ตรวจสอบหลักฐานก่อนดำเนินการ · cache 10 นาที ·
+                report นี้ไม่แก้ไข incident หรือคำตัดสินเดิม
+              </p>
+            </section>
+          </div>
+        </section>
+        <div id="tableToolbar" class="table-toolbar">
+          <label class="search-field"
+            ><svg><use href="#i-search" /></svg
+            ><span class="sr-only">ค้นหาข้อมูล</span
+            ><input
+              id="recordSearch"
+              type="search"
+              placeholder="ค้นหา IP, URL หรือข้อความ…"
+              maxlength="200"
+              autocomplete="off"
+          /></label>
+          <div class="filter-group">
+            <label id="sourceFilterLabel"
+              >Layer<select id="sourceFilter">
+                <option value="">All layers</option>
+                <option value="crowdsec">HTTP-WAF</option>
+                <option value="suricata">Network-IDS</option>
+                <option value="wazuh">Host-EDR</option>
+                <option value="manual">Manual</option>
+              </select></label
+            ><label id="severityFilterLabel"
+              >Severity<select id="recordSeverity">
+                <option value="">All severities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select></label
+            ><label id="statusFilterLabel"
+              >Status<select id="recordStatus">
+                <option value="">All statuses</option>
+              </select></label
+            ><label
+              >Rows<select id="pageSize">
+                <option>5</option>
+                <option selected>10</option>
+                <option>25</option>
+                <option>50</option>
+                <option>100</option>
+              </select></label
+            >
+          </div>
+        </div>
+        <div id="labControls" class="lab-controls" hidden>
+          <div>
+            <strong>Controlled attack lab</strong>
+            <p id="labScope">Checking kill switch…</p>
+          </div>
+          <button id="runLab" class="workspace-button" disabled>
+            Run lab campaign
+          </button>
+          <p id="labResult" role="status"></p>
+        </div>
+        <div
+          id="dataView"
+          class="data-view"
+          role="tabpanel"
+          aria-labelledby="tab-requests"
+          tabindex="0"
+        >
+          <p class="table-empty">กำลังโหลดข้อมูล…</p>
+        </div>
+        <footer id="pager" class="pager">
+          <span id="pageInfo" role="status">กำลังนับข้อมูล…</span>
+          <div class="page-controls">
+            <button id="firstPage" aria-label="หน้าแรก">First</button
+            ><button id="prevPage" aria-label="หน้าก่อน">Previous</button
+            ><label class="page-jump"
+              >หน้า
+              <input
+                id="pageNumber"
+                type="number"
+                min="1"
+                value="1"
+                inputmode="numeric"
+                aria-label="หมายเลขหน้า"
+              />
+              / <span id="pageTotal">1</span></label
+            ><button id="goPage" aria-label="ไปยังหน้าที่ระบุ">Go</button
+            ><button id="nextPage" aria-label="หน้าถัดไป">
+              Next <svg><use href="#i-arrow" /></svg></button
+            ><button id="lastPage" aria-label="หน้าสุดท้าย">Last</button>
+          </div>
+        </footer>
+        <p class="capture-note">
+          Traffic คือ HTTP access-log metadata ที่บันทึกไว้ ไม่ใช่ PCAP
+          ทั้งแพ็กเก็ต · body/payload จะแสดงเฉพาะเมื่อ sensor เก็บหลักฐานนั้นไว้
+        </p>
+      </section>
+    </main>
+    <footer class="workspace-footer">
+      <span><i class="dot"></i>LOCAL INFERENCE / HUMAN-GATED RESPONSE</span
+      ><a id="footerMissionLink" href="mission"
+        >Back to Mission Control <svg><use href="#i-arrow" /></svg
+      ></a>
+    </footer>
 
-  .cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
-           margin-bottom: 20px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-          padding: 12px; }
-  .card .num { font-size: 22px; font-weight: 700; }
-  .card .lbl { color: var(--muted); font-size: 11px; }
-  .card .num.warn { color: var(--warn); } .card .num.ok { color: var(--ok); }
-  .card .num.bad { color: var(--bad); } .card .num.purple { color: var(--purple); }
-
-  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-  .tab { padding: 8px 16px; background: var(--panel); border: 1px solid var(--line);
-         border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 13px; }
-  .tab.active { color: var(--text); border-color: var(--accent);
-                background: rgba(79,140,255,.12); }
-  .tab .badge { background: var(--bad); color: #fff; border-radius: 8px;
-                padding: 1px 7px; font-size: 11px; margin-left: 6px; }
-
-  table { width: 100%; border-collapse: collapse; background: var(--panel);
-          border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  th { text-align: left; padding: 10px 12px; color: var(--muted); font-size: 12px;
-       border-bottom: 1px solid var(--line); background: var(--panel2); }
-  td { padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px;
-       vertical-align: top; }
-  tr:hover td { background: rgba(79,140,255,.05); }
-  .sev { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .sev.high { background: rgba(255,93,122,.15); color: var(--bad); }
-  .sev.medium { background: rgba(255,180,84,.15); color: var(--warn); }
-  .sev.low { background: rgba(46,204,143,.15); color: var(--ok); }
-  .st { padding: 2px 8px; border-radius: 10px; font-size: 11px; }
-  .st.pending_approval { background: rgba(255,180,84,.15); color: var(--warn); }
-  .st.executed { background: rgba(46,204,143,.15); color: var(--ok); }
-  .st.rejected, .st.failed { background: rgba(255,93,122,.15); color: var(--bad); }
-  .st.auto_execute { background: rgba(167,139,250,.15); color: var(--purple); }
-  button { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line);
-           background: var(--panel2); color: var(--text); cursor: pointer;
-           font-size: 12px; }
-  button.approve { border-color: var(--ok); color: var(--ok); }
-  button.reject { border-color: var(--bad); color: var(--bad); }
-  button.run { border-color: var(--accent); color: var(--accent); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  .detail { background: var(--panel2); border: 1px solid var(--line);
-            border-radius: 8px; padding: 10px; margin-top: 6px; white-space: pre-wrap;
-            font-family: Consolas, monospace; font-size: 12px; color: var(--muted);
-            max-height: 260px; overflow: auto; }
-  .sectionTitle { font-size: 15px; margin: 18px 0 10px; color: var(--text); }
-  .muted { color: var(--muted); font-size: 12px; }
-  .empty { color: var(--muted); padding: 20px; text-align: center; }
-  .campaignCard { background: var(--panel); border: 1px solid var(--line);
-                  border-radius: 10px; padding: 12px; margin-bottom: 10px;
-                  display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px;
-                  align-items: center; }
-  .bar { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
-  .bar > div { height: 100%; background: var(--ok); }
-</style>
-</head>
-<body>
-<header>
-  <h1>🛡 Edge<span>Guard</span></h1>
-  <span class="chip" id="modeChip">…</span>
-  <span class="chip" id="svcOllama">ollama …</span>
-  <span class="chip" id="svcCrowdsec">crowdsec …</span>
-  <span class="chip" id="svcRedis">redis …</span>
-  <span class="chip" id="svcPg">postgres …</span>
-  <span id="refreshInfo">auto-refresh 15s</span>
-</header>
-<main>
-  <div class="pipeline" id="pipeline"></div>
-  <div class="cards" id="cards"></div>
-
-  <div class="tabs">
-    <div class="tab active" data-tab="approvals">Approvals <span class="badge" id="approvalBadge" style="display:none">0</span></div>
-    <div class="tab" data-tab="incidents">Incidents</div>
-    <div class="tab" data-tab="campaigns">Campaigns</div>
-    <div class="tab" data-tab="decisions">Decisions</div>
-    <div class="tab" data-tab="attacks">Attack Lab</div>
-    <div class="tab" data-tab="policy">Policy</div>
-  </div>
-  <div id="tabBody"></div>
-</main>
-
-<script>
-const API = location.pathname.startsWith('/AIEdgeGuard') ? '/AIEdgeGuard' : '';
-let DATA = { incidents: [], campaigns: [], decisions: [], attacks: [] };
-let activeTab = 'approvals';
-let refreshTimer = null, countdown = 15;
-
-const j = (u, opt) => fetch(API + u, opt).then(r => r.json());
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const sevBadge = s => `<span class="sev ${esc(s)}">${esc(s||'')}</span>`;
-const stBadge = s => `<span class="st ${esc(s)}">${esc(s)}</span>`;
-const dt = s => String(s ?? '').replace('T',' ').slice(0,19);
-
-async function loadAll() {
-  try {
-    const [health, status, incidents, campaigns, decisions, attacks, policy] =
-      await Promise.all([
-        j('/health'), j('/api/v1/agents/status'),
-        j('/api/v1/incidents?limit=200'), j('/api/v1/campaigns?limit=100'),
-        j('/api/v1/decisions?limit=100'), j('/api/v1/attacks?limit=50'),
-        j('/api/v1/policy'),
-      ]);
-    DATA = { health, status, incidents, campaigns, decisions, attacks, policy };
-    renderHeader(); renderPipeline(); renderCards(); renderTab();
-    countdown = 15;
-  } catch (e) {
-    document.getElementById('refreshInfo').textContent = 'load error: ' + e.message;
-  }
-}
-
-function renderHeader() {
-  const h = DATA.health || {};
-  for (const [k, el] of [['ollama','svcOllama'],['crowdsec','svcCrowdsec'],
-                         ['redis','svcRedis'],['postgres','svcPg']]) {
-    const v = h[k] || '…';
-    const el2 = document.getElementById(el);
-    el2.textContent = `${k}: ${String(v).startsWith('ok') ? 'ok' : 'err'}`;
-    el2.className = 'chip ' + (String(v).startsWith('ok') ? 'ok' : 'bad');
-    el2.title = v;
-  }
-  const st = DATA.status || {};
-  const mode = st.defense?.mode || '…';
-  document.getElementById('modeChip').textContent = 'defense: ' + mode;
-}
-
-function renderPipeline() {
-  const inc = DATA.incidents || [];
-  const analyzed = inc.filter(i => i.analyzed).length;
-  const camps = (DATA.campaigns || []).length;
-  const pending = (DATA.decisions || []).filter(d => d.status === 'pending_approval').length;
-  const executed = (DATA.decisions || []).filter(d => d.status === 'executed').length;
-  const runs = (DATA.attacks || []).length;
-  const stages = [
-    { n: runs,        l: 'ATTACK (lab)' },
-    { n: inc.length,  l: 'DETECT' },
-    { n: analyzed,    l: 'ANALYZE' },
-    { n: camps,       l: 'CAMPAIGNS' },
-    { n: pending,     l: 'DECIDE (wait)', warn: pending > 0 },
-    { n: executed,    l: 'DEFEND' },
-  ];
-  document.getElementById('pipeline').innerHTML = stages.map(s =>
-    `<div class="stage"><div class="num" ${s.warn ? 'style="color:var(--warn)"' : ''}>${s.n}</div>
-     <div class="lbl">${s.l}</div></div>`).join('');
-}
-
-function renderCards() {
-  const inc = DATA.incidents || [];
-  const analyzed = inc.filter(i => i.analyzed).length;
-  const sevHigh = inc.filter(i => i.severity === 'high').length;
-  const pending = (DATA.decisions || []).filter(d => d.status === 'pending_approval').length;
-  const executed = (DATA.decisions || []).filter(d => d.status === 'executed').length;
-  const attacks = DATA.attacks || [];
-  const det = attacks.reduce((a, x) => a + (x.techniques_detected || 0), 0);
-  const tot = attacks.reduce((a, x) => a + (x.techniques_total || 0), 0);
-  const rate = tot ? Math.round(det / tot * 100) : 0;
-  document.getElementById('cards').innerHTML = `
-    <div class="card"><div class="num">${inc.length}</div><div class="lbl">incidents (latest 200)</div></div>
-    <div class="card"><div class="num ok">${analyzed}</div><div class="lbl">AI-analyzed</div></div>
-    <div class="card"><div class="num bad">${sevHigh}</div><div class="lbl">high severity</div></div>
-    <div class="card"><div class="num purple">${(DATA.campaigns||[]).length}</div><div class="lbl">campaigns</div></div>
-    <div class="card"><div class="num warn">${pending}</div><div class="lbl">pending approvals</div></div>
-    <div class="card"><div class="num">${det}/${tot} <span class="muted">(${rate}%)</span></div><div class="lbl">lab detection rate</div></div>`;
-  const badge = document.getElementById('approvalBadge');
-  badge.textContent = pending;
-  badge.style.display = pending > 0 ? 'inline-block' : 'none';
-}
-
-function renderTab() {
-  const body = document.getElementById('tabBody');
-  if (activeTab === 'approvals') return renderApprovals(body);
-  if (activeTab === 'incidents') return renderIncidents(body);
-  if (activeTab === 'campaigns') return renderCampaigns(body);
-  if (activeTab === 'decisions') return renderDecisions(body);
-  if (activeTab === 'attacks') return renderAttacks(body);
-  if (activeTab === 'policy') return renderPolicy(body);
-}
-
-function renderApprovals(body) {
-  const pending = (DATA.decisions || []).filter(d => d.status === 'pending_approval');
-  if (!pending.length) {
-    body.innerHTML = '<div class="empty">ไม่มีรายการรออนุมัติ — AI proposals ทั้งหมดจัดการแล้ว</div>';
-    return;
-  }
-  body.innerHTML = `<table><tr>
-      <th>#</th><th>created</th><th>alert</th><th>action</th><th>target</th>
-      <th>duration</th><th>verdict reason</th><th></th></tr>` +
-    pending.map(d => `<tr>
-      <td>${d.id}</td><td class="muted">${dt(d.created_at)}</td>
-      <td class="muted">${esc(d.incident_alert_id)}</td>
-      <td>${esc(d.action)}</td><td>${esc(d.target)}</td>
-      <td>${d.duration_seconds}s</td>
-      <td class="muted">${esc(d.policy_reason)}</td>
-      <td><button class="approve" onclick="act(${d.id},'approve')">✓ approve</button>
-          <button class="reject" onclick="act(${d.id},'reject')">✕ reject</button></td>
-    </tr>`).join('') + '</table>';
-}
-
-function renderIncidents(body) {
-  const inc = DATA.incidents || [];
-  if (!inc.length) { body.innerHTML = '<div class="empty">ยังไม่มี incidents</div>'; return; }
-  body.innerHTML = `<table><tr>
-      <th>created</th><th>alert</th><th>severity</th><th>reason</th>
-      <th>source</th><th>AI analysis</th></tr>` +
-    inc.map(i => `<tr>
-      <td class="muted">${dt(i.created_at)}</td><td class="muted">${esc(i.alert_id)}</td>
-      <td>${sevBadge(i.severity)}</td><td>${esc((i.reason||'').slice(0,60))}</td>
-      <td class="muted">${esc(i.source_ip)}</td>
-      <td>${i.analyzed
-        ? `<button onclick="toggleDetail('inc-${esc(i.alert_id)}')">AI view</button>
-           <div class="detail" id="inc-${esc(i.alert_id)}" style="display:none">${esc(JSON.stringify(i, null, 2))}</div>`
-        : '<span class="muted">pending…</span>'}</td>
-    </tr>`).join('') + '</table>';
-}
-
-function renderCampaigns(body) {
-  const camps = DATA.campaigns || [];
-  if (!camps.length) { body.innerHTML = '<div class="empty">ยังไม่มี campaigns</div>'; return; }
-  body.innerHTML = camps.map(c => `
-    <div class="campaignCard">
-      <div><b>${esc(c.attack_type)}</b><div class="muted">${esc(c.title)}</div></div>
-      <div class="muted">from ${esc(c.source_ip)}</div>
-      <div>x<b>${c.incident_count}</b> <span class="muted">incidents</span></div>
-      <div class="muted">${dt(c.last_seen)}</div>
-    </div>`).join('');
-}
-
-function renderDecisions(body) {
-  const ds = DATA.decisions || [];
-  if (!ds.length) { body.innerHTML = '<div class="empty">ยังไม่มี decisions</div>'; return; }
-  body.innerHTML = `<table><tr>
-      <th>created</th><th>alert</th><th>action</th><th>target</th><th>dur</th>
-      <th>verdict</th><th>status</th><th>result</th></tr>` +
-    ds.map(d => `<tr>
-      <td class="muted">${dt(d.created_at)}</td><td class="muted">${esc(d.incident_alert_id)}</td>
-      <td>${esc(d.action)}</td><td>${esc(d.target)}</td><td>${d.duration_seconds}s</td>
-      <td class="muted">${esc(d.policy_verdict)}</td><td>${stBadge(d.status)}</td>
-      <td class="muted" style="max-width:260px">${esc((d.result||'').slice(0,90))}</td>
-    </tr>`).join('') + '</table>';
-}
-
-function renderAttacks(body) {
-  const attacks = DATA.attacks || [];
-  const st = DATA.status || {};
-  const kill = st.attack?.mode || '';
-  const det = attacks.reduce((a,x)=>a+(x.techniques_detected||0),0);
-  const tot = attacks.reduce((a,x)=>a+(x.techniques_total||0),0);
-  body.innerHTML = `
-    <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px">
-      <button class="run" onclick="runAttack()">▶ Run AI-planned attack (lab)</button>
-      <span class="muted">kill switch: ${esc(kill)} | targets: ${esc(st.attack?.targets||'')} |
-      lab detection: ${det}/${tot}</span>
-      <div class="bar" style="flex:1"><div style="width:${tot?det/tot*100:0}%"></div></div>
-    </div>` +
-    (attacks.length ? `<table><tr>
-      <th>created</th><th>run</th><th>target</th><th>attacker</th>
-      <th>detection</th><th>new alerts</th></tr>` +
-      attacks.map(a => `<tr>
-        <td class="muted">${dt(a.created_at)}</td>
-        <td><button onclick="toggleDetail('atk-${a.id}')">#${a.id}</button></td>
-        <td class="muted">${esc(a.target_host)}</td><td class="muted">${esc(a.attacker_ip)}</td>
-        <td>${a.techniques_detected}/${a.techniques_total}</td>
-        <td>${a.new_alerts}</td></tr>
-        <tr><td colspan="6"><div class="detail" id="atk-${a.id}" style="display:none">${esc(JSON.stringify(a, null, 2))}</div></td></tr>`
-      ).join('') + '</table>'
-      : '<div class="empty">ยังไม่มี attack runs</div>');
-}
-
-function renderPolicy(body) {
-  const p = DATA.policy || {};
-  body.innerHTML = `
-    <div class="muted" style="margin-bottom:10px">mode: <b>${esc(p.mode||'')}</b>
-      (แก้ได้ที่ edge-ai/api/app/policy.yaml + DEFENSE_AUTO_EXECUTE)</div>
-    <div class="detail">${esc(JSON.stringify(p.policy || {}, null, 2))}</div>`;
-}
-
-function toggleDetail(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-async function act(id, kind) {
-  if (!confirm(`${kind} decision #${id}?`)) return;
-  try {
-    await j(`/api/v1/decisions/${id}/${kind}`, { method: 'POST' });
-    await loadAll();
-  } catch (e) { alert('failed: ' + e.message); }
-}
-
-async function runAttack() {
-  if (!confirm('Run AI-planned attack against the LAB victim?')) return;
-  const btn = event.target; btn.disabled = true; btn.textContent = 'running…';
-  try {
-    const res = await j('/api/v1/attacks/run', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'juicelab.lab.local' }) });
-    alert(`Run #${res.id}: detected ${res.techniques_detected}/${res.techniques_total}` +
-          ` | new alerts: ${res.new_alerts}`);
-    await loadAll();
-  } catch (e) { alert('failed: ' + e.message); }
-  btn.disabled = false; btn.textContent = '▶ Run AI-planned attack (lab)';
-}
-
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  t.classList.add('active');
-  activeTab = t.dataset.tab;
-  renderTab();
-}));
-
-loadAll();
-refreshTimer = setInterval(() => {
-  countdown -= 1;
-  document.getElementById('refreshInfo').textContent = `auto-refresh in ${countdown}s`;
-  if (countdown <= 0) loadAll();
-}, 1000);
-</script>
-</body>
+    <dialog
+      id="detailDialog"
+      class="evidence-drawer"
+      aria-labelledby="detailTitle"
+    >
+      <div class="drawer-heading">
+        <div>
+          <h2 id="detailTitle">Request detail</h2>
+          <p id="detailSource" class="detail-source">Record inspector</p>
+        </div>
+        <button id="closeDetail" class="icon-button" aria-label="ปิดรายละเอียด">
+          <svg><use href="#i-close" /></svg>
+        </button>
+      </div>
+      <div class="drawer-actions">
+        <button id="previousDetail" class="quiet-button">Previous record</button
+        ><button id="nextDetail" class="quiet-button">Next record</button
+        ><button id="downloadRecord" class="quiet-button" disabled>
+          Download JSON
+        </button>
+      </div>
+      <div id="detailBody" class="detail-body"><p>กำลังโหลด…</p></div>
+    </dialog>
+  </body>
 </html>

@@ -30,7 +30,7 @@ async def _ensure_group(r) -> None:
             raise
 
 
-async def _drain_pending(r) -> int:
+async def _drain_pending(r, min_idle_time: int = 60_000) -> int:
     """Re-claim pending stream entries from previous runs (crash recovery).
 
     XREADGROUP '>' never returns entries already delivered to a consumer;
@@ -40,21 +40,23 @@ async def _drain_pending(r) -> int:
     cursor = "0-0"
     while True:
         resp = await r.xautoclaim(
-            STREAM, GROUP, CONSUMER, min_idle_time=0, start_id=cursor, count=10
+            STREAM,
+            GROUP,
+            CONSUMER,
+            min_idle_time=min_idle_time,
+            start_id=cursor,
+            count=10,
         )
         if not resp or len(resp) < 2:
             break
         cursor, messages = resp[0], resp[1]
-        if not messages:
-            break
         for msg_id, fields in messages:
             try:
                 await _process(r, msg_id, fields)
             except Exception as exc:  # noqa: BLE001
                 sys.stderr.write(f"[worker] drain {msg_id} failed: {exc}\n")
-                await r.xack(STREAM, GROUP, msg_id)
             claimed += 1
-        if len(messages) < 10:
+        if cursor in ("0-0", b"0-0"):
             break
     return claimed
 
@@ -63,14 +65,31 @@ async def run() -> None:
     # socket_timeout=None so BLOCK reads may wait server-side without raising;
     # decode_responses=True so stream fields are str (not bytes) — fields.get("json")
     # silently returned None without it and every event was acked as "empty"
-    r = aioredis.from_url(settings.redis_url, socket_timeout=None, decode_responses=True)
-    await _ensure_group(r)
-    pending = await _drain_pending(r)
-    if pending:
-        sys.stderr.write(f"[worker] drained {pending} pending events from previous run\n")
-    sys.stderr.write("[worker] started, analyzing stream events\n")
+    r = aioredis.from_url(
+        settings.redis_url, socket_timeout=None, decode_responses=True
+    )
     while True:
         try:
+            await _ensure_group(r)
+            pending = await _drain_pending(r, min_idle_time=0)
+            break
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — Redis may still be starting
+            sys.stderr.write(f"[worker] startup failed (will retry): {exc}\n")
+            await asyncio.sleep(5)
+    if pending:
+        sys.stderr.write(
+            f"[worker] drained {pending} pending events from previous run\n"
+        )
+    sys.stderr.write("[worker] started, analyzing stream events\n")
+    last_retry = asyncio.get_running_loop().time()
+    while True:
+        try:
+            now = asyncio.get_running_loop().time()
+            if now - last_retry >= 60:
+                await _drain_pending(r)
+                last_retry = asyncio.get_running_loop().time()
             resp = await r.xreadgroup(
                 GROUP, CONSUMER, {STREAM: ">"}, count=10, block=5000
             )
@@ -80,7 +99,6 @@ async def run() -> None:
                         await _process(r, msg_id, fields)
                     except Exception as exc:  # noqa: BLE001 — one bad event must not kill the worker
                         sys.stderr.write(f"[worker] event {msg_id} failed: {exc}\n")
-                        await r.xack(STREAM, GROUP, msg_id)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 — read retry loop (incl. block timeouts)
@@ -93,10 +111,14 @@ def _compact_evidence(incident: dict) -> dict:
 
     WAF alerts carry full request dumps (events[]) that can be huge; feeding
     everything into the prompt wastes context and stalls small local models.
+    The DB stores the normalized incident wrapper, so the engine payload is
+    nested one level down ("event") — descend before picking fields.
     """
     raw = incident.get("event") or {}
-    events = raw.get("events") or []
-    return {
+    nested = raw.get("event")
+    if isinstance(nested, dict):
+        raw = nested
+    evidence = {
         "alert_message": incident.get("reason") or raw.get("message"),
         "scenario": raw.get("scenario"),
         "kind": incident.get("kind"),
@@ -109,13 +131,31 @@ def _compact_evidence(incident: dict) -> dict:
                 for k in ("timestamp", "meta", "message")
                 if ev.get(k) is not None
             }
-            for ev in events[-3:]
+            for ev in (raw.get("events") or [])[-3:]
         ],
         "decisions": [
             {k: d.get(k) for k in ("type", "value", "duration", "reason")}
             for d in (raw.get("decisions") or [])[:5]
         ],
     }
+    # manual/test events (POST /api/v1/events) carry their own evidence dict
+    if isinstance(raw.get("evidence"), dict):
+        evidence["event_evidence"] = raw["evidence"]
+    for key in (
+        "alert",
+        "src_ip",
+        "dest_ip",
+        "proto",
+        "http",
+        "agent",
+        "rule",
+        "syscheck",
+        "data",
+        "location",
+    ):
+        if key in raw:
+            evidence[key] = raw[key]
+    return evidence
 
 
 def _fallback_analysis(reason: str, severity: str) -> dict:
@@ -145,7 +185,9 @@ def _fallback_analysis(reason: str, severity: str) -> dict:
         "prompt_injection_suspected": False,
         "needs_human_review": True,
         "recommended_action": {
-            "action_type": "none", "duration_seconds": 0, "target": "",
+            "action_type": "none",
+            "duration_seconds": 0,
+            "target": "",
         },
     }
 
@@ -160,7 +202,9 @@ async def _process(r, msg_id, fields) -> None:
 
     incident = await db.get_incident(alert_id)
     if incident is None:
-        sys.stderr.write(f"[worker] {alert_id}: no incident row (manual event) — skip\n")
+        sys.stderr.write(
+            f"[worker] {alert_id}: no incident row (manual event) — skip\n"
+        )
         # manual/test events (not alert-backed) — nothing to analyze here
         await r.xack(STREAM, GROUP, msg_id)
         return
@@ -180,15 +224,16 @@ async def _process(r, msg_id, fields) -> None:
     # Phase 9: similar past incidents as RAG context (learning loop)
     if settings.learning_enabled:
         try:
-            stext = (f"kind: {incident.get('kind')}\n"
-                     f"reason: {incident.get('reason')}")
+            stext = f"kind: {incident.get('kind')}\nreason: {incident.get('reason')}"
             similar = await learning.similar_context(stext, exclude_alert_id=alert_id)
             if similar:
                 event["evidence"]["similar_past_incidents"] = [
-                    {"alert_id": s["alert_id"],
-                     "attack_type": s.get("attack_type"),
-                     "similarity": round(float(s.get("similarity") or 0), 2),
-                     "reason": str(s.get("reason") or "")[:80]}
+                    {
+                        "alert_id": s["alert_id"],
+                        "attack_type": s.get("attack_type"),
+                        "similarity": round(float(s.get("similarity") or 0), 2),
+                        "reason": str(s.get("reason") or "")[:80],
+                    }
                     for s in similar
                 ]
         except Exception as exc:  # noqa: BLE001 — context is best-effort
@@ -199,14 +244,18 @@ async def _process(r, msg_id, fields) -> None:
         analysis = result.model_dump()
         summary = f"{result.attack_type} ({result.severity}, conf {result.confidence})"
         sys.stderr.write(f"[worker] {alert_id}: llm done -> {summary}\n")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         analysis = {
             "attack_type": "analysis_timeout",
             "severity": incident.get("severity") or "medium",
             "confidence": 0.0,
             "reasoning": "Analysis Agent timed out; requeue manually or increase timeout",
             "needs_human_review": True,
-            "recommended_action": {"action_type": "none", "duration_seconds": 0, "target": ""},
+            "recommended_action": {
+                "action_type": "none",
+                "duration_seconds": 0,
+                "target": "",
+            },
         }
         summary = "TIMEOUT"
         sys.stderr.write(f"[worker] {alert_id}: llm TIMEOUT\n")

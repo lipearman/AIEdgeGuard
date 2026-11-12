@@ -22,14 +22,63 @@ accessLog:
       RequestProtocol: keep
       RouterName: keep
       StartUTC: keep
+      RequestContentSize: keep
+      RequestScheme: keep
+    headers:
+      defaultMode: drop
+      names:
+        User-Agent: keep
+        Content-Type: keep
+        Accept: keep
+        X-Request-ID: keep
+        X-Forwarded-For: keep
 
 entryPoints:
   web:
     address: ":8080"
+    # Tailscale Funnel proxies external clients to us from 127.0.0.1 —
+    # trust its X-Forwarded-For so CrowdSec sees the REAL attacker IP
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "::1"
+        - "172.16.0.0/12" # docker proxy hairpin (host->container) source range
   pilot:
     address: ":80"
   pilotsecure:
     address: ":8443"
+  # One entrypoint per tailscale port whose ROOT path "/" is migrated into
+  # Traefik. Needed because every tailscale port sends the same Host header —
+  # a Host-only catch-all would also swallow the other ports' roots. These are
+  # published on 127.0.0.1 only (tailscaled runs on the host).
+  funnelroot10000:
+    address: ":8091"
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "::1"
+        - "172.16.0.0/12"
+  funnelroot443:
+    address: ":8092"
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "::1"
+        - "172.16.0.0/12"
+  funnelroot8443:
+    address: ":8093"
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "::1"
+        - "172.16.0.0/12"
+  funnelroot8445:
+    address: ":8094"
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "::1"
+        - "172.16.0.0/12"
 
 providers:
   docker:

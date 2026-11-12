@@ -15,6 +15,8 @@ services:
   api:
     build: ./api
     container_name: edge-ai-api
+    group_add:
+      - "999" # read-only Wazuh alert files (uid/gid 999 in the manager image)
     restart: unless-stopped
     environment:
       OLLAMA_URL: ${OLLAMA_URL}
@@ -33,22 +35,31 @@ services:
       ATTACK_TARGET_ALLOWLIST: ${ATTACK_TARGET_ALLOWLIST:-juicelab.lab.local}
       ATTACKER_URL: ${ATTACKER_URL:-http://edge-attacker:8000}
       LEARNING_ENABLED: ${LEARNING_ENABLED:-true}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      REQUEST_HISTORY_ENABLED: ${REQUEST_HISTORY_ENABLED:-true}
+      REQUEST_MAX_ROWS: ${REQUEST_MAX_ROWS:-100000}
+      REQUEST_RETENTION_DAYS: ${REQUEST_RETENTION_DAYS:-7}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text:latest}
       EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
     volumes:
+      - ../sensor-data:/var/lib/edgeguard/sensors:ro
+      - wazuh_manager_logs:/var/log/wazuh:ro
       # Phase 10 mission view: live packet feed reads the gateway access log
       - gateway_traefik_logs:/var/log/traefik:ro
     extra_hosts:
       # lets the container reach the host Ollama service (Docker Desktop)
       - "host.docker.internal:host-gateway"
     ports:
-      # local access only; 8099 because gateway traefik owns host 8080
-      - "100.99.80.84:8099:8000"
+      # 127.0.0.1 only: tailnet users must go through the EdgeGuard hostname
+      # (https://llm-server.tail923b9a.ts.net:8443/AIEdgeGuard) which enforces
+      # WAF + Basic auth. Publishing on the tailnet IP let any tailnet device
+      # call /api/v1/decisions (approve/ban) with no authentication.
+      - "127.0.0.1:8099:8000"
     depends_on:
       - redis
     networks:
       - gateway_net
-      - edge_web   # reach the attack-lab attacker container (Phase 8)
+      - edge_web # reach the attack-lab attacker container (Phase 8)
 
   redis:
     image: redis:7-alpine
@@ -66,6 +77,9 @@ services:
       - gateway_net
 
 volumes:
+  wazuh_manager_logs:
+    external: true
+    name: wazuh_wazuh_manager_logs
   redis_data:
   gateway_traefik_logs:
     external: true
@@ -79,4 +93,3 @@ networks:
     external: true
   edge_web:
     external: true
-

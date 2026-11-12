@@ -1,0 +1,24 @@
+# UNSAFE HISTORICAL EXAMPLE — NOT MOUNTED. DO NOT ENABLE.
+# Origin and Referer are spoofable. This rule bypasses protection for anyone
+# sending a matching header. Resolve false positives with scoped rule exclusions.
+# EdgeGuard allow rule — own Vercel frontends
+# Requests whose Origin/Referer is one of OUR Vercel frontends are skipped by
+# the WAF (CancelEvent) — they are legit API calls from our own apps.
+# NOTE: IP-ban decisions (bouncer) still apply to those requests — only the
+# WAF layer is skipped. The Origin header is client-controlled; treat this as
+# FP-prevention for our own apps, not as authentication (use API keys for that).
+#
+# Found from Vercel dashboard (dusit-prasertsilps-projects) on 2026-11-12:
+#   production: decision-lab-rose, thai-id-ocr-project, legalhub-ai-woad,
+#     surveyor-insurance-platform, sarentour, surveyor-insurance-platform-v2
+#   previews (forgemind/arena-world) are covered by the generic vercel.app match
+name: edgeguard/allow-vercel-frontend
+description: WAF skip for own Vercel frontends (Origin/Referer match)
+rules:
+  - zones: [HEADERS]
+    variables: [Origin, Referer]
+    match:
+      type: contains
+      value: vercel.app
+    on_match:
+      - CancelEvent()

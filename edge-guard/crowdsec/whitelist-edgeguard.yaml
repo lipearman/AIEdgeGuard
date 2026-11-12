@@ -1,0 +1,24 @@
+# EdgeGuard — never ban the gateway host itself.
+#
+# Why: traffic that we generate locally (curl to the funnel, dashboard checks,
+# .env probes used to verify the WAF) arrives with X-Forwarded-For
+# = 100.99.80.84, the host's own tailnet address. CrowdSec then bans that IP
+# (scenario crowdsecurity/http-probing) and the whole gateway returns 403 for
+# up to 4h — including EdgeGuard's own dashboard and every proxied app.
+# Observed 2026-11-12; 3 decisions had to be deleted manually.
+#
+# This whitelist only affects CrowdSec scenarios/decisions (no alerts, no bans
+# for these sources). AppSec (WAF) still inspects and blocks requests normally,
+# so `.env` probes still return 403 and still produce AppSec alerts.
+#
+# Real internet clients arrive through the funnel with their own public IP in
+# X-Forwarded-For, so this does NOT weaken protection for external traffic.
+name: edgeguard/admin-ip-whitelist
+description: "Do not ban the EdgeGuard gateway host / loopback (local admin + WAF self-tests)"
+whitelist:
+  reason: "EdgeGuard gateway host / loopback — local admin traffic and WAF self-tests"
+  ip:
+    - "100.99.80.84"
+  cidr:
+    - "127.0.0.0/8"
+    - "::1/128"

@@ -19,19 +19,20 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
+import httpx
 import redis.asyncio as aioredis
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app.agents import decision, defense
+from app import telemetry, traffic, triage, watcher, worker
+from app.agents import attack, decider, decision, defense, detection, learning
 from app.agents.analysis import AnalysisResult, analyze_event
-from app.agents import attack, decider, detection, learning
 from app.config import settings
-from app.integrations import crowdsec_client, db, ollama_client
-from app import watcher, worker
+from app.integrations import crowdsec_client, dashboard_db, db, ollama_client
 
 EVENT_STREAM = "edge:events"
 _background: list[asyncio.Task] = []
@@ -40,6 +41,11 @@ _background: list[asyncio.Task] = []
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.init_schema()
+    await dashboard_db.init_schema()
+    if settings.request_history_enabled:
+        _background.append(asyncio.create_task(traffic.run()))
+    if settings.telemetry_enabled:
+        _background.append(asyncio.create_task(telemetry.run()))
     if settings.ingest_enabled:
         _background.append(asyncio.create_task(watcher.run()))
     if settings.analyze_enabled:
@@ -53,12 +59,69 @@ async def lifespan(app: FastAPI):
     yield
     for task in _background:
         task.cancel()
+    await asyncio.gather(*_background, return_exceptions=True)
+    _background.clear()
 
 
 app = FastAPI(title="EdgeGuard Orchestrator", version="0.3.0", lifespan=lifespan)
+app.include_router(triage.router)
+
+Collection = Literal[
+    "requests", "incidents", "campaigns", "decisions", "approvals", "attacks"
+]
+
+
+@app.get("/api/v1/dashboard/summary")
+async def dashboard_summary():
+    return await dashboard_db.summary()
+
+
+@app.get("/api/v1/dashboard/data/{collection}")
+async def dashboard_page(
+    collection: Collection,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    q: str = Query("", max_length=200),
+    source: str = Query("", max_length=40),
+    severity: str = Query("", max_length=20),
+    status: str = Query("", max_length=40),
+    snapshot: int | None = Query(None, ge=0),
+):
+    try:
+        return await dashboard_db.page(
+            collection, page, page_size, q, source, severity, status, snapshot
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/dashboard/data/{collection}/{item_id}")
+async def dashboard_item(collection: Collection, item_id: int):
+    result = await dashboard_db.detail(collection, item_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail="record not found or no longer retained"
+        )
+    return result
+
+
+@app.get("/api/v1/visibility")
+async def visibility() -> dict:
+    """Actual sensor heartbeat and source counts, never inferred from artwork."""
+    return await telemetry.visibility()
+
 
 _STATIC = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def home(request: Request):
+    """Open the preview at its base URL, retaining a validated gateway prefix."""
+    prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
+    if prefix not in ("/AIEdgeGuard", "/aiedge"):
+        prefix = ""
+    return RedirectResponse(f"{prefix}/mission", status_code=307)
 
 
 @app.get("/dashboard", include_in_schema=False)
@@ -91,14 +154,20 @@ async def mission_alias():
 @app.get("/health")
 async def health() -> dict:
     status = {
-        "ollama": "unknown", "crowdsec": "unknown",
-        "redis": "unknown", "postgres": "unknown",
+        "ollama": "unknown",
+        "crowdsec": "unknown",
+        "redis": "unknown",
+        "postgres": "unknown",
     }
 
     try:
         models = await ollama_client.list_models()
-        status["ollama"] = "ok" if settings.ollama_model in models else (
-            f"model '{settings.ollama_model}' not pulled (available: {models[:8]})"
+        status["ollama"] = (
+            "ok"
+            if settings.ollama_model in models
+            else (
+                f"model '{settings.ollama_model}' not pulled (available: {models[:8]})"
+            )
         )
     except Exception as exc:  # noqa: BLE001 — health must not raise
         status["ollama"] = f"error: {exc}"
@@ -110,8 +179,8 @@ async def health() -> dict:
         status["crowdsec"] = f"error: {exc}"
 
     try:
-        client = aioredis.from_url(settings.redis_url)
-        await client.ping()
+        async with aioredis.from_url(settings.redis_url) as client:
+            await client.ping()
         status["redis"] = "ok"
     except Exception as exc:  # noqa: BLE001
         status["redis"] = f"error: {exc}"
@@ -135,13 +204,46 @@ class EventIn(BaseModel):
 
 @app.post("/api/v1/events")
 async def ingest_event(event: EventIn) -> dict:
-    """Normalize one security event into the pipeline stream (manual/test path)."""
+    """Normalize one security event into the pipeline (manual/test path).
+
+    The event is persisted as an incident row BEFORE it is queued: the worker
+    loads that row for evidence and skips stream entries that have none, so a
+    stream-only event was previously acknowledged and silently dropped.
+    """
     event_id = f"EVT-{uuid.uuid4().hex[:10]}"
     payload = event.model_dump()
     payload.update({"event_id": event_id, "received_at": int(time.time())})
 
-    client = aioredis.from_url(settings.redis_url)
-    await client.xadd(EVENT_STREAM, {"json": json.dumps(payload)})
+    incident = {
+        "alert_id": event_id,
+        "source": event.source,
+        "kind": event.event_type,
+        "severity": event.severity,
+        "reason": str(
+            event.evidence.get("reason") or f"{event.source}: {event.event_type}"
+        ),
+        "source_ip": event.source_ip,
+        "event": payload,
+    }
+    try:
+        await db.insert_incident(incident)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
+
+    try:
+        async with aioredis.from_url(settings.redis_url) as client:
+            await client.xadd(EVENT_STREAM, {"json": json.dumps(payload)})
+        await db.mark_queued(event_id)
+    except Exception as exc:
+        # The durable outbox lets the watcher publish this event after recovery.
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "event_id": event_id,
+                "queued": False,
+                "message": "event saved; queue unavailable, awaiting recovery",
+            },
+        ) from exc
 
     return {"event_id": event_id, "queued": True}
 
@@ -156,7 +258,7 @@ async def analyze(event: EventIn) -> AnalysisResult:
         return await analyze_event(event.model_dump())
     except ValueError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
 
 
@@ -168,7 +270,7 @@ async def incidents(limit: int = 50) -> list[dict]:
     """Latest incidents; `analyzed=true` means the Analysis Agent has run."""
     try:
         return await db.list_incidents(limit)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
 
 
@@ -176,7 +278,7 @@ async def incidents(limit: int = 50) -> list[dict]:
 async def incident_detail(alert_id: str) -> dict:
     try:
         incident = await db.get_incident(alert_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
     if incident is None:
         raise HTTPException(status_code=404, detail="incident not found")
@@ -188,16 +290,17 @@ async def requeue_unanalyzed(limit: int = 50) -> dict:
     """Re-push unanalyzed incidents into the stream for the worker."""
     try:
         rows = await db.list_incidents(limit)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
-    client = aioredis.from_url(settings.redis_url)
     count = 0
-    for row in rows:
-        if not row["analyzed"]:
-            await client.xadd(
-                EVENT_STREAM, {"json": json.dumps({"event_id": row["alert_id"]})}
-            )
-            count += 1
+    async with aioredis.from_url(settings.redis_url) as client:
+        for row in rows:
+            if not row["analyzed"]:
+                await client.xadd(
+                    EVENT_STREAM, {"json": json.dumps({"event_id": row["alert_id"]})}
+                )
+                await db.mark_queued(row["alert_id"])
+                count += 1
     return {"requeued": count}
 
 
@@ -208,7 +311,7 @@ async def requeue_unanalyzed(limit: int = 50) -> dict:
 async def crowdsec_alerts(limit: int = 20) -> list[dict]:
     try:
         return await crowdsec_client.list_alerts(limit=min(limit, 100))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"crowdsec: {exc}") from exc
 
 
@@ -216,7 +319,7 @@ async def crowdsec_alerts(limit: int = 20) -> list[dict]:
 async def crowdsec_decisions() -> list[dict]:
     try:
         return await crowdsec_client.list_decisions()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"crowdsec: {exc}") from exc
 
 
@@ -228,7 +331,7 @@ async def campaigns(limit: int = 50) -> list[dict]:
     """Attack campaigns: clustered incidents by source_ip + attack_type."""
     try:
         return await db.list_campaigns(limit)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
 
 
@@ -240,7 +343,7 @@ async def decisions_list(limit: int = 50) -> list[dict]:
     """All AI-proposed responses with their Policy Engine verdict + status."""
     try:
         return await db.list_decisions(limit)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
 
 
@@ -249,21 +352,22 @@ async def decision_approve(decision_id: int) -> dict:
     """Human approval — executes the proposed action via the Defense executor."""
     try:
         d = await db.get_decision(decision_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
     if not d:
         raise HTTPException(status_code=404, detail="decision not found")
-    if d["status"] in ("executed",):
-        raise HTTPException(status_code=409, detail="already executed")
-    if d["status"] == "rejected":
-        raise HTTPException(status_code=409, detail="decision was rejected")
-
-    result = await defense.execute(
-        d["action"], d["target"], d["duration_seconds"],
-        justification=f"human-approved decision #{decision_id}",
-    )
+    if d["status"] != "pending_approval":
+        raise HTTPException(status_code=409, detail=f"decision status is {d['status']}")
+    try:
+        result = await defense.execute_stored(decision_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="execution could not be confirmed; check CrowdSec before retrying",
+        ) from exc
     status = "executed" if result.get("ok") else "failed"
-    await db.update_decision_status(decision_id, status, result=str(result))
     return {"decision_id": decision_id, "status": status, "result": result}
 
 
@@ -272,13 +376,20 @@ async def decision_reject(decision_id: int) -> dict:
     """Human rejection — marks the proposal rejected (nothing executes)."""
     try:
         d = await db.get_decision(decision_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
     if not d:
         raise HTTPException(status_code=404, detail="decision not found")
-    if d["status"] == "executed":
-        raise HTTPException(status_code=409, detail="already executed")
-    await db.update_decision_status(decision_id, "rejected", result="rejected by human")
+    changed = await db.update_decision_status(
+        decision_id,
+        "rejected",
+        result="rejected by human",
+        expected_status="pending_approval",
+    )
+    if not changed:
+        raise HTTPException(
+            status_code=409, detail="decision is no longer pending approval"
+        )
     return {"decision_id": decision_id, "status": "rejected"}
 
 
@@ -287,10 +398,12 @@ async def policy_view() -> dict:
     """The live deterministic Policy (what the Decision Agent enforces)."""
     try:
         policy = decision.load_policy()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=500, detail=f"policy load: {exc}") from exc
     return {
-        "mode": "auto_execute" if settings.defense_auto_execute else "dry_run (human approval)",
+        "mode": "auto_execute"
+        if settings.defense_auto_execute
+        else "dry_run (human approval)",
         "policy": policy,
     }
 
@@ -302,11 +415,14 @@ async def policy_view() -> dict:
 async def learning_stats() -> dict:
     try:
         stats = await db.embedding_stats()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
-    return {**stats, "model": settings.embedding_model,
-            "dim": settings.embedding_dim,
-            "enabled": settings.learning_enabled}
+    return {
+        **stats,
+        "model": settings.embedding_model,
+        "dim": settings.embedding_dim,
+        "enabled": settings.learning_enabled,
+    }
 
 
 class SimilarIn(BaseModel):
@@ -319,7 +435,7 @@ async def learning_similar(body: SimilarIn) -> list[dict]:
     """Find past incidents similar to free text (RAG lookup)."""
     try:
         return await learning.similar_context(body.text, k=body.k)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"embedding: {exc}") from exc
 
 
@@ -344,16 +460,18 @@ def _tail_access_log(lines: int) -> list[dict]:
                 d = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            out.append({
-                "ts": d.get("StartUTC", "")[:19].replace("T", " "),
-                "method": d.get("RequestMethod", ""),
-                "path": str(d.get("RequestPath", ""))[:90],
-                "host": d.get("RequestHost", ""),
-                "status": d.get("DownstreamStatus", 0),
-                "source_ip": d.get("ClientHost", ""),
-                "router": str(d.get("RouterName", "")).replace("@docker", ""),
-                "ms": d.get("Duration", 0) // 1_000_000,
-            })
+            out.append(
+                {
+                    "ts": d.get("StartUTC", "")[:19].replace("T", " "),
+                    "method": d.get("RequestMethod", ""),
+                    "path": str(d.get("RequestPath", ""))[:90],
+                    "host": d.get("RequestHost", ""),
+                    "status": d.get("DownstreamStatus", 0),
+                    "source_ip": d.get("ClientHost", ""),
+                    "router": str(d.get("RouterName", "")).replace("@docker", ""),
+                    "ms": d.get("Duration", 0) // 1_000_000,
+                }
+            )
     except FileNotFoundError:
         return [{"error": "access log not mounted (gateway_traefik_logs volume)"}]
     except Exception as exc:  # noqa: BLE001
@@ -383,8 +501,10 @@ async def attack_catalog() -> dict:
     """Techniques available in the attacker container (for the UI)."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            return await client.get(f"{settings.attacker_url}/catalog").json()
-    except Exception as exc:  # noqa: BLE001
+            resp = await client.get(f"{settings.attacker_url}/catalog")
+            resp.raise_for_status()
+            return resp.json()
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"attacker: {exc}") from exc
 
 
@@ -399,7 +519,7 @@ async def attack_run(run: AttackRun) -> dict:
         return await attack.run_attack(run.target)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"attack failed: {exc}") from exc
 
 
@@ -407,7 +527,7 @@ async def attack_run(run: AttackRun) -> dict:
 async def attacks_list(limit: int = 20) -> list[dict]:
     try:
         return await attack.list_attacks(limit)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
 
 
@@ -415,7 +535,7 @@ async def attacks_list(limit: int = 20) -> list[dict]:
 async def attack_detail(attack_id: int) -> dict:
     try:
         run = await attack.get_attack(attack_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"db: {exc}") from exc
     if not run:
         raise HTTPException(status_code=404, detail="attack not found")
@@ -428,22 +548,35 @@ async def agents_status() -> dict:
         "analysis": {
             "implemented": True,
             "model": settings.ollama_model,
-            "mode": "auto-ingestion" if settings.ingest_enabled and settings.analyze_enabled else "manual",
+            "mode": "auto-ingestion"
+            if settings.ingest_enabled and settings.analyze_enabled
+            else "manual",
         },
-        "detection": {"implemented": True, "mode": "clustering every 60s" if settings.detection_enabled else "off"},
-        "decision": {"implemented": True, "mode": "deterministic Policy Engine" if settings.decide_enabled else "off"},
+        "detection": {
+            "implemented": True,
+            "mode": "clustering every 60s" if settings.detection_enabled else "off",
+        },
+        "decision": {
+            "implemented": True,
+            "mode": "deterministic Policy Engine" if settings.decide_enabled else "off",
+        },
         "defense": {
             "implemented": True,
-            "mode": "auto_execute" if settings.defense_auto_execute else "dry_run (human approval required)",
+            "mode": "auto_execute"
+            if settings.defense_auto_execute
+            else "dry_run (human approval required)",
         },
         "attack": {
             "implemented": True,
-            "mode": "lab" if settings.attack_enabled else "kill switch OFF (ATTACK_ENABLED=false)",
+            "mode": "lab"
+            if settings.attack_enabled
+            else "kill switch OFF (ATTACK_ENABLED=false)",
             "targets": settings.attack_target_allowlist,
         },
         "learning": {
             "implemented": True,
             "mode": f"pgvector ({settings.embedding_model}, {settings.embedding_dim}d)"
-                    if settings.learning_enabled else "off",
+            if settings.learning_enabled
+            else "off",
         },
     }

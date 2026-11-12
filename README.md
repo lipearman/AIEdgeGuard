@@ -1,105 +1,107 @@
 # Local AI EdgeGuard
 
-ระบบป้องกันไซเบอร์ที่รัน **local 100%** — Gateway (Traefik + CrowdSec) ตรวจจับ/บล็อกด่านหน้า,
-Local LLM (Qwen3.5 9B บน Ollama) วิเคราะห์/เสนอการตอบสนอง ผ่าน Policy Engine ก่อน execute เสมอ
+ระบบป้องกันเว็บและวิเคราะห์เหตุการณ์ด้วย AI ภายในเครื่อง: Traefik + CrowdSec ทำงานด่านหน้า ส่วน Ollama วิเคราะห์หลักฐานและเสนอการตอบสนองผ่าน Policy Engine
 
-- รายงานศึกษาความเป็นไปได้: [docs/feasibility-study.md](docs/feasibility-study.md)
-- บันทึกการย้าย gateway: [docs/gateway-migration.md](docs/gateway-migration.md) (**เสร็จแล้ว**)
-- แผนสถาปัตยกรรมต้นฉบับ: [docs/reference-chatgpt-plan.md](docs/reference-chatgpt-plan.md)
+## สถาปัตยกรรมปัจจุบัน
 
-## สถานะปัจจุบัน (2026-11-12): Gateway ใช้งานจริงแล้ว ✅
+```text
+Internet / Tailscale → Traefik → CrowdSec AppSec / OWASP CRS → แอปปลายทาง
+                                     │ alerts
+                                     ↓
+                         watcher → PostgreSQL → Redis Streams
+                                                      ↓
+                                         worker → Ollama Analysis
+                                                      ↓
+                         Detection (campaigns) + Decision (YAML policy)
+                                                      ↓
+                                   Human approval / L1 auto-execution
+                                                      ↓
+                                         Defense → CrowdSec IP ban
 
-```
-Internet → [traefik] :8080/:28080 (CVAT routes เดิม)  :80/:8443 (project ใหม่)
-              ├─ middleware "crowdsec" (ผูกทีละ route)
-              │     ├─ IP ban ตรวจทุก request (LAPI)
-              │     └─ AppSec WAF (200+ vpatch rules) → 403
-              ├─ access log (JSON) → gateway-crowdsec parser
-              └─ networks: cvat_cvat + gateway_net + edge_web
-
-[C:\Docker\gateway\]
-  traefik + gateway-crowdsec + gateway-postgres(pgvector)
-
-[edge-ai — ยังไม่ deploy]  FastAPI 6-agent orchestrator → Ollama (host :11434)
+Analyzed incidents → Ollama embeddings → pgvector → บริบทสำหรับเหตุการณ์ถัดไป
 ```
 
-ผ่านการทดสอบแล้ว: routing ครบเท่า baseline ทุก route (CVAT/agents-office/grafana),
-AppSec บล็อกจริง (403 + บันทึก alert), IP ban/unban ทำงาน
+LLM ไม่อยู่ในเส้นทางรอรับ HTTP request และไม่สั่งบล็อกโดยตรง Learning ใช้ RAG จากเหตุการณ์เก่า ไม่ได้ฝึกโมเดลใหม่
 
-## โครงสร้าง repo
+## ส่วนประกอบ
 
+| ตำแหน่ง | หน้าที่ |
+|---|---|
+| `edge-guard/` | Gateway: Traefik, CrowdSec WAF, PostgreSQL/pgvector |
+| `edge-ai/` | FastAPI, watcher/worker, 6 Agent roles, Dashboard/Mission |
+| `lab/` | Juice Shop และ attacker ที่ใช้รายการเทคนิคตายตัว |
+| `wazuh/` | Wazuh Manager + Windows/Ubuntu agents; ส่ง host alerts เข้า edge-ai แล้ว |
+| `pilot/MIGRATION.md` | วิธีผูกแอปเข้ากับ gateway ทีละ route |
+| `tools/` | ทดสอบ routing/false positives, ดู WAF log, จัดการ firewall |
+
+## สถานะและ deployment
+
+- โค้ดมี ingestion, analysis, campaigns, policy/approval, defense, Attack Lab, pgvector และ UI แล้ว
+- Gateway ที่เครื่องนี้ใช้ config จาก `C:\Docker\gateway\` โดย repo เป็นแหล่งต้นฉบับ แก้และตรวจใน repo ก่อน sync ไป live
+- edge-ai ใช้ compose ที่ `edge-ai/` และเชื่อม gateway network `gateway_gateway_net` กับ `edge_web`
+- ค่าเริ่มต้น `DEFENSE_AUTO_EXECUTE=false`: ต้องอนุมัติการตอบสนอง ส่วน `ATTACK_ENABLED=false` ปิดการทดสอบ Lab
+- API โดยตรงเปิดเฉพาะ `127.0.0.1:8099`; ทาง Tailnet ต้องผ่าน gateway ที่มี WAF + Basic Auth
+- หน้า Mission ใหม่พร้อมภาพ 3D/Three.js และสถานะ HTTP-WAF + Network-IDS + Host-EDR: [docs/mission-control.md](docs/mission-control.md)
+- เอกสารผลตรวจรอบก่อนและข้อจำกัด: [docs/current-status.md](docs/current-status.md)
+- ประวัติ migration และผลทดสอบก่อนหน้า: [docs/gateway-migration.md](docs/gateway-migration.md)
+
+หน้าใช้งานบนเครื่อง:
+
+- Dashboard: `http://127.0.0.1:8099/dashboard`
+- Mission: `http://127.0.0.1:8099/mission`
+- Health: `http://127.0.0.1:8099/health`
+- API docs: `http://127.0.0.1:8099/docs`
+
+ทาง Tailnet ใช้ `https://llm-server.tail923b9a.ts.net:8443/AIEdgeGuard/mission` หรือ alias `/aiedge/mission` ผ่าน gateway ที่ตั้งค่าไว้แล้ว
+
+## กติกาการตอบสนอง
+
+- Policy อนุญาตอัตโนมัติเฉพาะ `temporary_ip_block` ตามชนิดเหตุการณ์, confidence และ severity ที่กำหนด
+- IP เป้าหมายต้องตรงกับ source IP ของเหตุการณ์ ข้อเสนอ IP อื่นจะถูกปฏิเสธ
+- IP ภายใน, Tailscale, loopback และ IPv6 ภายในต้องให้คนอนุมัติ
+- `needs_human_review` หรือ `prompt_injection_suspected` ห้ามทำอัตโนมัติ
+- บล็อกเริ่มต้น 15 นาที สูงสุดตาม policy 1 ชั่วโมง และมี cooldown 30 นาทีจากเวลาที่ execute สำเร็จ
+- คำขออนุมัติและปฏิเสธเปลี่ยนสถานะแบบ atomic ป้องกันการ execute ซ้ำ
+- ถ้าคำตอบจาก enforcement หาย สถานะเป็น `execution_unknown` ต้องตรวจ CrowdSec ก่อนตัดสินใจต่อ
+
+## การพัฒนาและทดสอบ
+
+```powershell
+uv venv .venv
+uv pip install --python .venv/Scripts/python.exe -r edge-ai/api/requirements.txt
+.venv/Scripts/python.exe -m unittest discover -s edge-ai/api/tests -v
 ```
-AIEdgeGuard/
-├── edge-guard/          gateway stack (mirror ของ C:\Docker\gateway\ ที่ deploy จริงแล้ว)
-├── edge-ai/             FastAPI orchestrator (skeleton พร้อม Analysis Agent)
-├── pilot/MIGRATION.md   วิธีผูก project เข้ามาอยู่ใต้ CrowdSec (ทีละ route)
-├── tools/               scripts ช่วยงานเอกสาร
-└── docs/                รายงานศึกษา + migration record + แผนอ้างอิง
+
+ชุดทดสอบไม่ส่งคำสั่งบล็อกจริง ตั้ง `EDGEGUARD_TEST_DATABASE_URL` ให้เป็น PostgreSQL ทดสอบแยก ชื่อฐานข้อมูล `edgeguard_test` เพื่อรัน integration tests ครบ ชุด integration จะล้างข้อมูลในฐานทดสอบนี้ทุกกรณี
+
+ทดสอบ Mission ด้วย Playwright + Chrome ที่ติดตั้งแล้ว:
+
+```powershell
+python edge-ai/api/tests/verify_mission.py
+python edge-ai/api/tests/verify_dashboard.py
+python edge-ai/api/tests/verify_triage.py
 ```
 
-> **หมายเหตุ deployment:** config จริงที่รันอยู่คือ `C:\Docker\gateway\` บนเครื่อง llm-server (Windows + Docker Desktop) — ไฟล์ใน repo เป็น mirror ฉบับ canonical แก้ที่ repo แล้ว copy ไปที่ live เสมอ
+สคริปต์จำลอง API ทั้งหมด ไม่ยิงโจมตีจริง และเก็บภาพที่ `.artifacts/`
 
-## การเริ่มใช้งาน (หาก deploy ใหม่ที่เครื่องอื่น)
+Dashboard ใหม่รองรับ responsive 3D, server paging, ค้นหา/กรองข้อมูล และเปิดดู request headers หรือ packet/payload ที่ sensor บันทึกไว้ พร้อม export JSON ดูข้อจำกัดการเก็บข้อมูลและวิธีตั้งค่าได้ที่ [Dashboard](docs/dashboard.md) (ภาพทดสอบ Dashboard อยู่ที่ `.impeccable/review/`)
 
-```bash
-# 0. networks
-docker network create edge_web   # gateway_net ถูกสร้างโดย gateway compose เอง
+แท็บ [AI Triage Copilot](docs/ai-triage.md) เลือก Wazuh alert แล้วสตรีมบทวิเคราะห์ภาษาไทย/อังกฤษจาก Ollama พร้อมดู cleaned payload, เลือกโมเดลที่ติดตั้ง, hostname hint และ Redis cache/bypass โดยไม่แก้ไขคำตัดสินเดิม
 
-# 1. gateway
-cd edge-guard && cp .env.example .env   # ใส่ POSTGRES_PASSWORD
-docker compose up -d && sleep 20
-docker compose exec crowdsec cscli bouncers add traefik-bouncer -o raw   # → ใส่ key ใน .env
-docker compose up -d traefik
+ตรวจ compose โดยไม่แสดง secrets:
 
-# 2. edge-ai (หลัง gateway พร้อม)
-docker compose exec crowdsec cscli machines add edge-ai --password "<สุ่ม>" -o raw
-docker compose exec crowdsec cscli bouncers add edge-ai-readonly -o raw
-cd ../edge-ai && cp .env.example .env   # ใส่ credentials + OLLAMA_MODEL
-docker compose up -d --build
-curl http://127.0.0.1:8080/health       # ollama/crowdsec/redis = ok
+```powershell
+docker compose -f edge-ai/docker-compose.yml config --quiet
+docker compose --env-file C:/Docker/gateway/.env -f edge-guard/docker-compose.yml config --quiet
 ```
 
-## ผูก project เข้ามาให้ CrowdSec ป้องกัน
+Compose gateway ผูกกับ network และไฟล์ของแอปอื่นบนเครื่องนี้ การย้ายเครื่องต้องปรับ external networks, host paths, Tailscale IP และ credentials ให้ตรงก่อนใช้งาน `.env` ห้าม commit
 
-ดู [pilot/MIGRATION.md](pilot/MIGRATION.md) — สั้น ๆ คือ:
+## งานต่อยอด
 
-```yaml
-# ใน compose ของ project: ลบ ports, เพิ่ม labels + network
-labels:
-  - traefik.enable=true
-  - traefik.http.routers.myapp.rule=Host(`myapp.lab.local`)
-  - traefik.http.routers.myapp.entrypoints=pilot        # :80 (ใหม่) หรือ web (:8080 เดิม)
-  - traefik.http.routers.myapp.middlewares=crowdsec@docker
-networks: [edge_web, gateway_net]   # edge_web = traffic, (แนะนำเพิ่ม traefik.docker.network=edge_web)
-```
+1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
+2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)
+3. วัด false positives และประสิทธิภาพจาก traffic จริงก่อนเปิด auto-execution
+4. Pin image และ Python dependencies สำหรับ release ที่ทำซ้ำได้
 
-## Acceptance Tests (ทดสอบแล้ว ผ่านทุกข้อ ✅)
-
-| Test | คำสั่ง | คาดหวัง | ผลจริง |
-|---|---|---|---|
-| Route เดิมครบ | `curl -H "Host: llm-server" http://localhost:8080/api/server/about` | 200 | ✅ |
-| AppSec จับ .env | `curl -H "Host: <domain>" http://localhost:80/.env` (ต้องผูก middleware แล้ว) | **403** | ✅ |
-| AppSec จับ CVE | `curl ... /phpunit/src/Util/PHP/eval-stdin.php` | **403** | ✅ |
-| AppSec จับ .git | `curl ... /.git/config` | **403** | ✅ |
-| Alert ถูกบันทึก | `cscli alerts list` | kind=waf + source IP | ✅ |
-| Ban IP | `cscli decisions add --ip <IP> --duration 2m` แล้ว request จาก IP นั้น | **403** ทุก route | ✅ |
-| Unban | `cscli decisions remove --ip <IP>` | กลับมา 200 | ✅ |
-| Defense ปิดอยู่ | `POST /api/v1/defense/decision` (edge-ai) | **503** (safety gate) | ✅ |
-
-> payload `?id=1 OR 1=1` แบบเก่า **ไม่** โดนบล็อก — CrowdSec AppSec เน้น virtual patching (CVE/pattern จริง) ไม่ใช่ regex SQLi หลวม ๆ — ใช้ payload ตามตารางข้างบนในการทดสอบ
-
-## Roadmap ถัดไป
-
-1. ✅ **เฟส 2:** Gateway migration + CrowdSec AppSec live + skeleton
-2. ✅ **ผูก pilot project เข้า middleware** (ทีละ route — ดู pilot/MIGRATION.md)
-3. **เฟส 3:** Wazuh (Docker Desktop) + Suricata ใน WSL2 Ubuntu (มีอยู่แล้วในเครื่อง)
-4. **เฟส 4–5:** edge-ai up + event ingestion จริง (CrowdSec LAPI → Redis → PostgreSQL) + Detection Agent
-5. **เฟส 6–7:** Decision Agent + Policy Engine (YAML) + Defense executor (human approval)
-6. **เฟส 8–10:** Attack Lab (WSL2/VM) + Learning loop (pgvector) + Dashboard
-
-## ข้อควรระวัง
-
-- **ห้ามรัน** `docker compose up` ที่ C:\Docker\cvat จนกว่าจะ restore traefik block — port 8080 ชนกัน
-- Image ทุกตัว pin เวอร์ชันหลวม ๆ — pin จริงก่อนขึ้น production
-- `.env` ทั้งหมดถูก gitignore — ห้าม commit
-- VRAM: ใช้ `typhoon2.5-qwen3-4b` ทดสอบ pipeline ก่อน (Windows desktop กิน VRAM ~8.4GB) สลับเป็น `qwen3.5:9b` ผ่าน `OLLAMA_MODEL` ใน edge-ai/.env เมื่อจัด VRAM ได้
+ดูแผนเดิมได้ที่ [feasibility study](docs/feasibility-study.md) และ [reference plan](docs/reference-chatgpt-plan.md) โดยใช้โค้ดและ current-status เป็นหลักเมื่อต่างจาก roadmap เก่า

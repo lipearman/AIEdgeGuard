@@ -7,10 +7,15 @@
 #   L2 human approval   L3 never automated
 version: 1
 defaults:
-  default_duration_seconds: 900   # 15 min — CrowdSec expires it automatically
-  max_duration_seconds: 3600      # hard cap on any AI-proposed duration
+  default_duration_seconds: 900
+  max_duration_seconds: 3600
+  # cooldown = repeat-block guard. If a target was enforced-blocked
+  # cooldown_max_repeats times inside cooldown_seconds, a new proposal for the
+  # same target escalates to human approval instead of auto-executing again.
+  cooldown_seconds: 1800
+  cooldown_max_repeats: 1
 allowlist:
-  actions:                        # the ONLY verbs the Defense executor accepts
+  actions: # the ONLY verbs the Defense executor accepts
     - temporary_ip_block
   attack_types:
     - SQL Injection Attempt
@@ -22,10 +27,14 @@ allowlist:
     - Brute Force Attempt
   min_confidence: 0.6
   min_severities: [high, medium]
-protected_ranges:                 # NEVER auto-blocked — human approval only
+protected_ranges: # NEVER auto-blocked — human approval only
   - 127.0.0.0/8
   - 10.0.0.0/8
   - 172.16.0.0/12
   - 192.168.0.0/16
-  - 100.64.0.0/10                 # Tailscale CGNAT — our own devices
+  - 100.64.0.0/10 # Tailscale CGNAT — our own devices
   - 169.254.0.0/16
+  - ::/128
+  - ::1/128
+  - fc00::/7
+  - fe80::/10
