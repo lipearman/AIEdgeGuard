@@ -765,3 +765,9 @@ curl -X POST ... -H "X-Operation-Key: uC7QxyDNrzSTynmUTFeEXfRdnunvEaGM" -d '{"ta
 
 **ค้าง:** ai-call-center publish 0.0.0.0:8000 ยังเป็น side door (LAN/TS เข้าตรงไม่ผ่าน auth)
 — แนะนำเปลี่ยน 127.0.0.1:8000 (L1 lockdown) เมื่อยืนยัน URL ใหม่ใช้งานจริงได้
+
+### Redirect fix: https hardcoded (2026-11-12 ลึก) ✅
+- aicall-slash redirectRegex replacement เดิม `${1}/` คืน scheme จาก internal chain
+  (http://) → follow ไป port 80 ที่ไม่มีตัวรับ → 404
+- แก้: replacement hardcode "https://llm-server.tail923b9a.ts.net/AICallCenter/"
+- ยืนยันครบ: /AICallCenter 302 → follow https 200 ✓ funnel 200 ✓ /form 200 ✓ API JSON ✓
