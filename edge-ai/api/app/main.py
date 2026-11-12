@@ -67,9 +67,21 @@ async def dashboard():
     return FileResponse(_STATIC / "dashboard.html")
 
 
+@app.get("/DashBoard", include_in_schema=False)
+async def dashboard_alias():
+    """Alias for funnel access: /AIEdgeGuard/DashBoard (strip-prefix via Traefik)."""
+    return FileResponse(_STATIC / "dashboard.html")
+
+
 @app.get("/mission", include_in_schema=False)
 async def mission():
     """Mission Control view — cinematic real-time defense visualization."""
+    return FileResponse(_STATIC / "mission.html")
+
+
+@app.get("/Mission", include_in_schema=False)
+async def mission_alias():
+    """Alias for funnel access: /AIEdgeGuard/Mission."""
     return FileResponse(_STATIC / "mission.html")
 
 
