@@ -1,0 +1,50 @@
+# AI Call Center — published via the funnel at /AICallCenter
+#
+# https://llm-server.tail923b9a.ts.net/AICallCenter          → call history
+# https://llm-server.tail923b9a.ts.net/AICallCenter/outbound.html → สั่งงานโทรออก
+# https://llm-server.tail923b9a.ts.net/AICallCenter/form     → แบบฟอร์มลูกค้า
+# https://llm-server.tail923b9a.ts.net/AICallCenter/api/*    → API
+#
+# upstream: ai-call-center-gateway-1 (host port 8000, verified reachable)
+# auth: Basic auth (edgeguard-admin) — the app has no auth of its own and
+#       this is call control, so the funnel path is gated here.
+# app links: converted to relative (bak-aicall) so navigation works under
+#       the prefix at every page depth.
+#
+# NOTE: the funnel :443 also proxies / -> 9000 (portal) and :10000 paths ->
+# the EdgeGuard gateway — this router only claims the /AICallCenter prefix
+# (priority 1000) so it never collides with other apps on this hostname.
+
+http:
+  routers:
+    aicallcenter:
+      entryPoints:
+        - web9002
+      middlewares:
+        - aicall-auth
+        - aicall-slash
+        - aicall-strip
+      service: aicallcenter
+      rule: "Host(`llm-server.tail923b9a.ts.net`) && PathPrefix(`/AICallCenter`)"
+      priority: 1000
+
+  middlewares:
+    aicall-auth:
+      basicAuth:
+        users:
+          - "edgeguard-admin:$apr1$8O1LXNSP$swDeB9.DUTeATNNFNkCkw1"
+    aicall-slash:
+      redirectRegex:
+        regex: "^(https?://[^/]+/AICallCenter)$"
+        replacement: "${1}/"
+        permanent: false
+    aicall-strip:
+      stripPrefix:
+        prefixes:
+          - /AICallCenter
+
+  services:
+    aicallcenter:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

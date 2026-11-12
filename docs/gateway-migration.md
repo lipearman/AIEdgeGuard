@@ -748,3 +748,20 @@ curl -X POST ... -H "X-Operation-Key: uC7QxyDNrzSTynmUTFeEXfRdnunvEaGM" -d '{"ta
 
 **สรุป:** vpatch-CVE-2024-4577 จับ payload ของ PHP bug ที่ถูกโจมตีหนักสุด 2024-2026 ได้จริง
 (rule จับ URI_FULL มี "?%ad" — soft-hyphen byte) — detection catalog ครบ 10 เทคนิค
+
+---
+
+## AI Call Center publish ผ่าน Funnel :443 (2026-11-12 ลึก) ✅
+
+**URL ตามที่ขอ:** https://llm-server.tail923b9a.ts.net/AICallCenter (Basic auth: edgeguard-admin)
+
+**โครงสร้าง:** host traefik (:9000) dynamic file `aicallcenter.yml` (mirror: tools/host-traefik/)
+- router Host(ts.net) && PathPrefix(/AICallCenter) priority 1000
+- middlewares: aicall-auth (basicauth) → aicall-slash (redirect ต่อท้าย /) → aicall-strip (/AICallCenter)
+- service: http://127.0.0.1:8000 (ai-call-center-gateway-1 publish)
+- app links แก้ absolute → relative (bak-aicall) เพื่อใช้งานใต้ prefix ทุก depth
+
+**ทดสอบผ่าน Funnel จริง:** no-auth 401 ✓ / outbound.html 200 ✓ / form 200 ✓ / API JSON จริง ✓
+
+**ค้าง:** ai-call-center publish 0.0.0.0:8000 ยังเป็น side door (LAN/TS เข้าตรงไม่ผ่าน auth)
+— แนะนำเปลี่ยน 127.0.0.1:8000 (L1 lockdown) เมื่อยืนยัน URL ใหม่ใช้งานจริงได้
