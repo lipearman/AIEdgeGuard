@@ -707,3 +707,26 @@ port-forwarding state + WSL + network stack)
 - execution_unknown/executing ค้าง: ตรวจ CrowdSec active decisions + audit ก่อนดำเนินการ
 - Campaign count ย้อนหลังยังไม่แก้ข้อมูล (รักษาประวัติ)
 - mission.html ที่ราก repo เป็นไฟล์เก่า (แอปใช้ edge-ai/api/app/static/mission.html)
+
+---
+
+## Operation Key gate (2026-11-12 ลึก) — deployed, test blocked by port-forwarding
+
+**สิ่งที่ implement แล้ว (ยืนยันในไฟล์):**
+- config.py: `operation_key` setting (empty = gate OFF สำหรับ dev/tests)
+- main.py: `require_operation_key` dependency (X-Operation-Key header,
+  secrets.compare_digest) ผูกกับ 5 state-changing endpoints:
+  events ingest / incidents requeue / decisions approve / reject / attacks/run
+- compose: OPERATION_KEY ผ่านเข้า api container ✓
+- .env: OPERATION_KEY ตั้งค่าแล้ว (gitignored) — gate ON ✓
+- mission.js/dashboard.js: popup prompt + X-Operation-Key header
+  (sessionStorage cache — ไม่ต้องใส่ซ้ำทุกคลิก)
+
+**ทดสอบติดขัด:** loopback + TS-IP publish forwarding ตายเป็นระยะ (com.docker.backend
+state เสียหลัง crash ×5) — **reboot เครื่องก่อนแล้วรัน test matrix ซ้ำ:**
+```
+curl -X POST http://127.0.0.1:8099/api/v1/attacks/run -d '{"target":"juicelab.lab.local"}'          → 403 (no key)
+curl -X POST ... -H "X-Operation-Key: wrong"                                                        → 403
+curl -X POST ... -H "X-Operation-Key: uC7QxyDNrzSTynmUTFeEXfRdnunvEaGM" -d '{"target":"juicelab.lab.local"}' → run จริง
+```
+**หมายเหตุ:** key นี้เก็บใน edge-ai/.env (gitignored) — ใช้ใน popup ของ dashboard ด้วย

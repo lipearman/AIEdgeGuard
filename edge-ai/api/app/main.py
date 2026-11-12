@@ -15,6 +15,7 @@ Safety invariants:
 
 import asyncio
 import json
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -23,7 +24,7 @@ from typing import Literal
 
 import httpx
 import redis.asyncio as aioredis
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -115,6 +116,31 @@ _STATIC = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
 
+async def require_operation_key(
+    x_operation_key: str | None = Header(
+        default=None, alias="X-Operation-Key"
+    ),
+) -> None:
+    """Server-side gate for state-changing endpoints.
+
+    These endpoints are exposed on the public funnel (/AIEdgeGuard/*), so a
+    shared operation key is required. The browser prompts for the key and
+    sends it via the X-Operation-Key header; the comparison happens here
+    (client-side popups are UX only, never security).
+
+    Gate behavior: OPERATION_KEY set in edge-ai/.env = enforced.
+    Unset = ungated (dev/tests only — production MUST set it).
+    """
+    if not settings.operation_key:
+        return  # dev mode: gate disabled when no key configured
+    if not x_operation_key or not secrets.compare_digest(
+        x_operation_key, settings.operation_key
+    ):
+        raise HTTPException(
+            status_code=403, detail="invalid or missing operation key"
+        )
+
+
 @app.get("/", include_in_schema=False)
 async def home(request: Request):
     """Open the preview at its base URL, retaining a validated gateway prefix."""
@@ -203,7 +229,9 @@ class EventIn(BaseModel):
 
 
 @app.post("/api/v1/events")
-async def ingest_event(event: EventIn) -> dict:
+async def ingest_event(
+        event: EventIn, _op: None = Depends(require_operation_key)
+    ) -> dict:
     """Normalize one security event into the pipeline (manual/test path).
 
     The event is persisted as an incident row BEFORE it is queued: the worker
@@ -286,7 +314,9 @@ async def incident_detail(alert_id: str) -> dict:
 
 
 @app.post("/api/v1/incidents/requeue")
-async def requeue_unanalyzed(limit: int = 50) -> dict:
+async def requeue_unanalyzed(
+        limit: int = 50, _op: None = Depends(require_operation_key)
+    ) -> dict:
     """Re-push unanalyzed incidents into the stream for the worker."""
     try:
         rows = await db.list_incidents(limit)
@@ -348,7 +378,9 @@ async def decisions_list(limit: int = 50) -> list[dict]:
 
 
 @app.post("/api/v1/decisions/{decision_id}/approve")
-async def decision_approve(decision_id: int) -> dict:
+async def decision_approve(
+        decision_id: int, _op: None = Depends(require_operation_key)
+    ) -> dict:
     """Human approval — executes the proposed action via the Defense executor."""
     try:
         d = await db.get_decision(decision_id)
@@ -372,7 +404,9 @@ async def decision_approve(decision_id: int) -> dict:
 
 
 @app.post("/api/v1/decisions/{decision_id}/reject")
-async def decision_reject(decision_id: int) -> dict:
+async def decision_reject(
+        decision_id: int, _op: None = Depends(require_operation_key)
+    ) -> dict:
     """Human rejection — marks the proposal rejected (nothing executes)."""
     try:
         d = await db.get_decision(decision_id)
@@ -509,7 +543,9 @@ async def attack_catalog() -> dict:
 
 
 @app.post("/api/v1/attacks/run")
-async def attack_run(run: AttackRun) -> dict:
+async def attack_run(
+        run: AttackRun, _op: None = Depends(require_operation_key)
+    ) -> dict:
     """Run one AI-planned attack campaign against the LAB victim.
 
     Safety: ATTACK_ENABLED kill switch + target allowlist + deterministic

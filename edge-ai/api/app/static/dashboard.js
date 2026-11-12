@@ -877,9 +877,16 @@ async function act(item, verb, button) {
   )
     return;
   button.disabled = true;
+  const opkey = sessionStorage.opkey || prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
+  if (!opkey) {
+    button.disabled = false;
+    return;
+  }
+  sessionStorage.opkey = opkey;
   try {
     const result = await request(`/api/v1/decisions/${item.id}/${verb}`, {
       method: "POST",
+      headers: { "X-Operation-Key": opkey },
     });
     if (result.status === "failed")
       alert("ดำเนินการไม่สำเร็จ: " + JSON.stringify(result.result));
@@ -903,13 +910,23 @@ async function runLab() {
     )
   )
     return;
+  const opkey = sessionStorage.opkey || prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
+  if (!opkey) {
+    labBusy = false;
+    updateLab();
+    return;
+  }
+  sessionStorage.opkey = opkey;
   labBusy = true;
   updateLab();
   $("labResult").textContent = "กำลังทดสอบ…";
   try {
     const result = await request("/api/v1/attacks/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Operation-Key": opkey,
+      },
       body: JSON.stringify({ target: "juicelab.lab.local" }),
     });
     $("labResult").textContent =

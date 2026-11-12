@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     attack_target_allowlist: str = "juicelab.lab.local"  # comma-separated hosts
     attacker_url: str = "http://edge-attacker:8000"
 
+    # --- Operation key gate (Phase 10c) ---
+    # State-changing endpoints (attacks/run, decisions approve/reject,
+    # events ingest, incidents requeue) require the X-Operation-Key header
+    # matching this value. Empty = gate OFF (dev/tests only!) — production
+    # .env MUST set it (see edge-ai/.env.example).
+    operation_key: str = ""
+
     # --- Learning loop (Phase 9) ---
     learning_enabled: bool = True     # embed incidents into pgvector
     embedding_model: str = "nomic-embed-text:latest"  # 768 dims, 0.3GB

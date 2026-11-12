@@ -409,13 +409,22 @@ async function testLiveFire() {
   if (attackMode !== "lab" || attackRunning) return;
   if (!confirm("เริ่มทดสอบกับ Juice Shop ใน lab? การทดสอบจะสร้าง alert จริง"))
     return;
+  const opkey = sessionStorage.opkey || prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
+  if (!opkey) {
+    byId("attackResult").textContent = "ยกเลิก — ไม่ได้ใส่ Operation Key";
+    return;
+  }
+  sessionStorage.opkey = opkey;
   attackRunning = true;
   byId("attack").disabled = true;
   byId("attackResult").textContent = "กำลังทดสอบ กรุณารอผล…";
   try {
     const r = await request("/api/v1/attacks/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Operation-Key": opkey,
+      },
       body: JSON.stringify({ target: "juicelab.lab.local" }),
     });
     byId("attackResult").textContent =
