@@ -2,6 +2,24 @@
 
 ระบบป้องกันเว็บและวิเคราะห์เหตุการณ์ด้วย AI ภายในเครื่อง: Traefik + CrowdSec ทำงานด่านหน้า ส่วน Ollama วิเคราะห์หลักฐานและเสนอการตอบสนองผ่าน Policy Engine
 
+## ภาพตัวอย่าง
+
+### Mission Control — มุมมองการป้องกัน 3 ชั้น
+
+![LACD Mission Control พร้อมสถานะ HTTP-WAF, Network-IDS และ Host-EDR](docs/assets/examples/mission-control.jpg)
+
+### Dashboard — AI Alert Triage Copilot
+
+![Dashboard พร้อมคิว Wazuh และรายงานวิเคราะห์ภาษาไทยจาก Ollama](docs/assets/examples/dashboard-ai-triage.jpg)
+
+ภาพหน้าจอเป็นตัวอย่าง ณ เวลาที่บันทึก ตัวเลขและสถานะอาจต่างจากระบบปัจจุบัน ดูรายละเอียดได้ที่ [Mission Control](docs/mission-control.md) และ [AI Triage](docs/ai-triage.md)
+
+### Architecture — ภาพอ้างอิงรุ่นก่อน
+
+![ภาพอ้างอิงสถาปัตยกรรม LACD: traffic, event pipeline, AI และ human approval](docs/assets/examples/architecture-reference.jpg)
+
+ภาพ Architecture นี้จัดทำก่อนเชื่อม Wazuh และ Suricata จึงยังแสดงทั้งสองส่วนเป็น Planned Integrations ปัจจุบันเชื่อมใช้งานแล้วตามขอบเขตใน [สถานะระบบ](docs/current-status.md) ใช้ภาพนี้ประกอบความเข้าใจภาพรวม โดยยึดเอกสารและโค้ดปัจจุบันเป็นหลัก
+
 ## สถาปัตยกรรมปัจจุบัน
 
 ```text

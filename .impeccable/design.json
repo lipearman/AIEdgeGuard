@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T12:26:21.007135+00:00",
+  "generatedAt": "2026-11-12T17:30:13.576716+00:00",
   "title": "Design System: LACD Defense Console",
   "extensions": {
     "scope": "Mission Control and Dashboard / Defense Workspace; preserve their distinct overview and record-oriented layouts.",
@@ -18,7 +18,13 @@
       ".impeccable/review/dashboard-768.png",
       ".impeccable/review/dashboard-390.png",
       ".impeccable/review/dashboard-inspector-1440.png",
-      ".impeccable/review/dashboard-inspector-390.png"
+      ".impeccable/review/dashboard-inspector-390.png",
+      "docs/ai-triage.md",
+      "edge-ai/api/app/static/triage.css",
+      "edge-ai/api/app/static/triage.js",
+      ".impeccable/review/triage-1440.png",
+      ".impeccable/review/triage-768.png",
+      ".impeccable/review/triage-390.png"
     ],
     "colorMeta": {
       "bg": {
@@ -367,6 +373,10 @@
       {
         "name": "workspace-labeled-rows-max",
         "value": "600px"
+      },
+      {
+        "name": "triage-stacked-max",
+        "value": "900px"
       }
     ],
     "dashboardBackground": {
@@ -376,6 +386,28 @@
       "mobile": "At max-width 600px: 65% -100px / auto 500px no-repeat",
       "overlays": "Dark horizontal gradients protect text; vertical gradient fades artwork into midnight page.",
       "runtime": "Static CSS background; no Three.js, scene script, standalone scene caption or animation control."
+    },
+    "triage": {
+      "scope": "Dashboard AI Triage tab; existing cyan palette and local fonts, no separate visual identity.",
+      "layout": "22px workspace padding; minmax(260px,.85fr) minmax(0,1.4fr); 24px gutter; stack at <=900px; 16px workspace padding at <=600px.",
+      "overflow": "Queue max-height 560px desktop/320px stacked; report min-height 280px, max-height 650px; cleaned context max-height 320px; wrap long evidence values.",
+      "reportTypography": "14px/1.85; pre-wrap plain text, including HTML-like content.",
+      "controls": "Native TH/EN language select, installed-model select, text hostname hint and bypass-cache checkbox; incumbent buttons and disabled states.",
+      "disclosure": "Cleaned model context previews next-request evidence, not proof of a prior send; metadata returns actual context. Byte counts are measured sizes; hint changes invalidate preview.",
+      "provenance": "Reset to Not generated on selection/settings changes; awaiting model metadata while connecting; use returned model/language/cache provenance only after metadata.",
+      "states": [
+        "Ready",
+        "Connecting · awaiting model metadata",
+        "Streaming",
+        "Cache hit",
+        "Completed",
+        "Cached report",
+        "Stopped · partial report, not complete",
+        "Error / incomplete",
+        "Cache unavailable",
+        "Queue empty / unavailable / retry"
+      ],
+      "boundaries": "Advisory local Ollama; session-local model choice; unverified hostname hint; completed-report Redis cache 10 minutes; no edits to existing analysis or decisions and no enforcement."
     }
   },
   "components": [
@@ -458,11 +490,19 @@
       "description": "Inspector typography and visible capture limitation, shown as a contained specimen.",
       "html": "<section class=\"ds-drawer\"><header><h2>HTTP request metadata</h2></header><div><h3>HTTP body / payload</h3><p>HTTP body and PCAP were not captured for this record.</p></div></section>",
       "css": ".ds-drawer{background:#061421;color:var(--text,#e4effa);font:14px/1.5 var(--font,\"IBM Plex Sans Thai\",sans-serif);border-left:1px solid #2b566e;max-width:650px}.ds-drawer header{padding:23px 24px 18px;background:#071a29;border-bottom:1px solid var(--line,#163145)}.ds-drawer h2{margin:0;font:600 29px var(--display,\"Barlow Condensed\",sans-serif)}.ds-drawer>div{padding:22px 24px}.ds-drawer h3{margin:0 0 12px;font:600 21px var(--display,\"Barlow Condensed\",sans-serif)}.ds-drawer p{border:1px dashed #315168;padding:14px;border-radius:4px;font-size:12px;color:var(--muted,#8daabe);line-height:1.8}"
+    },
+    {
+      "name": "Triage priority alert",
+      "kind": "custom",
+      "refersTo": "triage-queue-alert",
+      "description": "Selected priority-queue evidence button; state uses aria-pressed with a cyan border.",
+      "html": "<button class=\"ds-triage-alert\" aria-pressed=\"true\"><span class=\"ds-triage-rule\">LVL 9 · Rule #5710</span><strong>Repeated authentication failure</strong><small>Endpoint · observed timestamp</small></button>",
+      "css": ".ds-triage-alert{display:block;width:100%;text-align:left;color:var(--text,#e4effa);background:#04101b;border:1px solid var(--line,#163145);border-radius:7px;padding:14px;cursor:pointer;font-family:var(--font,\"IBM Plex Sans Thai\",sans-serif)}.ds-triage-alert:hover{border-color:var(--cyan-soft,#78d9fa)}.ds-triage-alert[aria-pressed=\"true\"]{border-color:var(--cyan,#22c9ff);background:#092335}.ds-triage-alert:focus-visible{outline:2px solid var(--cyan,#22c9ff);outline-offset:4px}.ds-triage-alert strong{display:block;font-size:13px;line-height:1.6;margin:9px 0;overflow-wrap:anywhere}.ds-triage-alert small{display:block;color:var(--muted,#8daabe);font-size:11px;overflow-wrap:anywhere}.ds-triage-rule{font-size:11px;color:var(--cyan-soft,#78d9fa);overflow-wrap:anywhere}"
     }
   ],
   "narrative": {
     "northStar": "The Local Defense Console",
-    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
+    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. AI Triage extends Dashboard with an advisory Wazuh priority queue and streamed local report, using the same visual language. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
     "keyCharacteristics": [
       "Dense operational hierarchy with a dominant central scene.",
       "Local bilingual fonts, thin cyan line icons and tabular metrics.",

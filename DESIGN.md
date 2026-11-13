@@ -115,6 +115,19 @@ components:
     rounded: "0"
     width: "min(650px, 100%)"
     height: "100dvh"
+  triage-queue-alert:
+    backgroundColor: "#04101b"
+    textColor: "{colors.text}"
+    rounded: "{rounded.visibility}"
+    padding: "14px"
+  triage-queue-alert-selected:
+    backgroundColor: "#092335"
+    textColor: "{colors.text}"
+  triage-report:
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.visibility}"
+    padding: "20px"
 ---
 
 # Design System: LACD Defense Console
@@ -125,7 +138,7 @@ components:
 
 Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.
 
-This system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.
+This system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. AI Triage extends Dashboard with an advisory Wazuh priority queue and streamed local report, using the same visual language. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.
 
 **Key Characteristics:**
 - Dense operational hierarchy with a dominant central scene.
@@ -190,6 +203,8 @@ These cutoffs are inclusive CSS media-query boundaries. Retain min-width:0, elli
 
 Dashboard adds a record-oriented layout with a 1680px content limit and 24px desktop insets (1720px header limit). Its intro is a single transparent block with operational copy and a 220px desktop minimum height; four summary metrics sit immediately above records. At 1199px content insets become 16px. At 800px metrics become two columns, and the desktop table can scroll inside its own viewport. At 600px the intro has no minimum height, insets become 12px, and the table becomes labeled two-column record rows. Request target, evidence and action cells span the row. Mobile defaults to five records; larger viewports default to ten. The drawer is right-aligned, at most 650px wide and full viewport height; on mobile it fills the width, with wrapping values, local code scrolling and a sticky heading.
 
+AI Triage sits inside the Dashboard records panel as its own tab. The workspace has 22px padding and a 24px gutter between minmax(260px, .85fr) queue and minmax(0, 1.4fr) report tracks. A right-hand hairline and 24px inset separate the queue on desktop. At 900px and narrower the panes stack, the separator becomes a bottom rule, and the queue list maximum height drops from 560px to 320px so the report remains reachable. At 600px the workspace padding becomes 16px and tool/settings labels wrap. The report uses 14px plain text at 1.85 line height, a 280px minimum/650px maximum height and local scrolling; cleaned-context code has a 320px maximum height. Long hostnames, rule IDs, alert descriptions, status messages and report content wrap within their own pane.
+
 ## Elevation & Depth
 
 Mission Control animation and Dashboard imagery have distinct roles. Dashboard has no standalone scene, caption or Play/Pause control and loads neither Three.js nor mission-scene.js. Its existing generated shield/world image is a fixed, noninteractive decorative page background behind dark gradient overlays; record panels remain opaque. Desktop positions the image at right -100px with auto width and 650px height. At 600px and narrower it uses 65% -100px with auto width and 500px height. Horizontal overlays protect copy contrast; vertical overlays fade the art into the midnight page.
@@ -221,10 +236,18 @@ Panels and dialogs use gently rounded corners, controls smaller corners and badg
 
 Dashboard extends these components without changing the Mission composition:
 
-- **Records workspace:** tabs for traffic, incidents, approvals, campaigns, decisions, Attack Lab and policy; selected tabs use a cyan lower rule and tonal fill. Search and source/severity/status filters operate on server records. Keep empty/error states and disabled page actions explicit.
+- **Records workspace:** tabs for traffic, incidents, AI Triage, approvals, campaigns, decisions, Attack Lab and policy; selected tabs use a cyan lower rule and tonal fill. Search and source/severity/status filters operate on server records. Keep empty/error states and disabled page actions explicit.
 - **Layer and service status:** defense layers retain readable state text on mobile; dependencies show the service name plus the actual status string and a dot. Missing health remains unavailable. Keep human approval mode next to these indicators.
 - **Server paging:** search, filtering and page size are sent to the PostgreSQL-backed endpoint; the returned snapshot anchor keeps new inserts from shifting later pages. The pager displays record range, filtered total and current/total pages. Later pages pause auto-refresh; refresh/filter changes reset the snapshot as implemented. Dashboard totals describe retained server records and must not be confused with Mission loaded samples.
 - **Evidence drawer:** selecting a record opens captured evidence with adjacent-record navigation, JSON export and collapsible raw JSON. HTTP traffic is retained access-log metadata with captured allowlisted headers when available; it is not a full PCAP/body capture. Incidents may expose sensor payload and a captured frame rendered as hex/ASCII (preview limited to 4096 bytes). Display missing capture/body limitations directly and retain the label “Gateway peer” rather than asserting an attacker identity. Wrap long targets and headers; preserve the mobile labeled-row view behind the modal.
+
+AI Triage adds these evidence-first patterns within the same cyan world:
+
+- **Priority queue:** paginated Wazuh alerts sorted by real rule level then newest record. Native minimum-level selection defaults to 7, with 5/10/12 options. Sync queue renews its stable snapshot. Full-width alert buttons use a steel outline, 7px corners and 14px padding; selection adds cyan border and a restrained blue fill, expressed with aria-pressed. The level badge, rule, reason, host and time stay readable independently of the accent.
+- **Report controls:** native language select offers “ไทย + technical EN” and “English.” Ollama settings reveals installed-model selection with session-local scope; it does not change a global model or server URL. The optional hostname hint is unverified analyst context and does not rename a Wazuh host. Stream analysis, Stop and the native Bypass cache checkbox use incumbent controls and explicit disabled states.
+- **Cleaned-context disclosure:** the details summary is “Cleaned model context”; Inspect cleaned payload previews the bounded/redacted evidence for the next request, including the current hint. This disclosure does not claim the preview was already sent. Stream metadata returns the actual context used. Show original-event and model-context byte counts as measured bytes, without invented token savings or a claim of guaranteed anonymization. Hint edits invalidate the displayed preview and prompt reinspection.
+- **Provenance and streaming states:** new selection resets provenance to “Not generated · local Ollama”; language/model changes show “Not generated · settings changed.” Starting shows “Connecting · awaiting model metadata.” Only returned stream metadata supplies the model, language and Redis cached/live-generation provenance. Distinguish Ready, Streaming, Cache hit, Completed, Cached report, stopped partial report, errors and unavailable cache; do not let an old model label imply a new report exists. Preserve queue empty/error/retry states and incomplete report text.
+- **Plain report surface:** render model output as plain text with preserved line breaks and wrapping, including HTML-like log content; no rich HTML report renderer. Advisory copy remains adjacent: analysis may be wrong, completed cache lasts ten minutes, and the report does not modify stored incident analysis or decisions or trigger enforcement. Partial/failed/stopped reports remain visibly incomplete rather than appearing cached or complete.
 
 All interactive controls inherit a 2px cyan focus-visible outline with 4px offset. Preserve skip navigation, dialog semantics and actual text labels; color alone does not communicate state.
 

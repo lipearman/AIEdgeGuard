@@ -8,9 +8,9 @@
     <link rel="stylesheet" href="static/fonts/mission-fonts.css" />
     <link rel="stylesheet" href="static/mission.css" />
     <link rel="stylesheet" href="static/dashboard.css?v=20261112-background" />
-    <link rel="stylesheet" href="static/triage.css?v=20261112" />
-    <script src="static/triage.js?v=20261112" defer></script>
-    <script src="static/dashboard.js?v=20261112-workspace" defer></script>
+    <link rel="stylesheet" href="static/triage.css?v=20261113-final" />
+    <script src="static/triage.js?v=20261113-final" defer></script>
+    <script src="static/dashboard.js?v=20261113-triage" defer></script>
   </head>
   <body class="dashboard-page">
     <svg
@@ -301,9 +301,7 @@
                 <div>
                   <h3 id="triageReportTitle">SOC analyst triage report</h3>
                   <p id="triageSelection">เลือก Wazuh alert จากคิวด้านซ้าย</p>
-                  <p id="triageModelInfo">
-                  Not generated · local Ollama
-                  </p>
+                  <p id="triageModelInfo">Not generated · local Ollama</p>
                 </div>
               </div>
               <div class="triage-report-actions">
@@ -333,7 +331,7 @@
                 Ready · ข้อเสนอแนะเท่านั้น ไม่มีการบล็อกอัตโนมัติ
               </p>
               <details id="triagePayload">
-              <summary>Cleaned model context</summary>
+                <summary>Cleaned model context</summary>
                 <p id="triagePayloadStats"></p>
                 <pre id="triagePayloadBody" class="evidence-code">
 เลือก alert เพื่อดู context ที่ตัดทอนและปกปิด secret patterns แล้ว</pre

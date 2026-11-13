@@ -344,7 +344,7 @@
   ["triageLanguage", "triageModel"].forEach((id) =>
     $(id).addEventListener("change", () => {
       if (selected) {
-          $("triageModelInfo").textContent = "Not generated · settings changed";
+        $("triageModelInfo").textContent = "Not generated · settings changed";
         $("triageReport").textContent =
           "Settings changed · กด Stream analysis เพื่อสร้างรายงานใหม่";
         status("Ready · settings changed");

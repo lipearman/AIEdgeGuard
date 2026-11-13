@@ -159,9 +159,9 @@ def run():
             assert page.evaluate("window.injected") is None
             assert page.locator("#triageReport img").count() == 0
             assert not page.locator("#triageStart").is_disabled()
-            page.locator('#triageLanguage').select_option('th')
-            assert 'Not generated' in page.locator('#triageModelInfo').inner_text()
-            page.locator('#triageLanguage').select_option('en')
+            page.locator("#triageLanguage").select_option("th")
+            assert "Not generated" in page.locator("#triageModelInfo").inner_text()
+            page.locator("#triageLanguage").select_option("en")
             page.locator("#triageBypass").check()
             page.locator("#triageStart").click()
             page.wait_for_function(
@@ -205,7 +205,7 @@ def run():
                 "document.querySelector('#triagePage').textContent==='2 / 2'"
             )
             page.locator(".triage-alert").first.click()
-            assert 'Not generated' in page.locator('#triageModelInfo').inner_text()
+            assert "Not generated" in page.locator("#triageModelInfo").inner_text()
             state["stream_error"] = True
             page.locator("#triageStart").click()
             page.wait_for_function(
