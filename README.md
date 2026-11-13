@@ -14,29 +14,27 @@
 
 ภาพหน้าจอเป็นตัวอย่าง ณ เวลาที่บันทึก ตัวเลขและสถานะอาจต่างจากระบบปัจจุบัน ดูรายละเอียดได้ที่ [Mission Control](docs/mission-control.md) และ [AI Triage](docs/ai-triage.md)
 
-### Architecture — ภาพอ้างอิงรุ่นก่อน
+### Architecture — Flow ปัจจุบัน (13 พฤศจิกายน 2026)
 
-![ภาพอ้างอิงสถาปัตยกรรม LACD: traffic, event pipeline, AI และ human approval](docs/assets/examples/architecture-reference.jpg)
+![สถาปัตยกรรม LACD ปัจจุบัน: การป้องกัน 3 ชั้น, persist-first pipeline, request history, human approval และ AI Triage Copilot](docs/assets/examples/architecture-current.png)
 
-ภาพ Architecture นี้จัดทำก่อนเชื่อม Wazuh และ Suricata จึงยังแสดงทั้งสองส่วนเป็น Planned Integrations ปัจจุบันเชื่อมใช้งานแล้วตามขอบเขตใน [สถานะระบบ](docs/current-status.md) ใช้ภาพนี้ประกอบความเข้าใจภาพรวม โดยยึดเอกสารและโค้ดปัจจุบันเป็นหลัก
+ภาพนี้รวม HTTP-WAF, Suricata Network-IDS, Wazuh Host-EDR, การเก็บ HTTP request history และ AI Triage แบบ SSE/Redis cache แล้ว อ่านเส้นทางข้อมูลและข้อจำกัดใน [Architecture flow](docs/architecture-flow.md) ส่วนภาพรุ่นก่อนเก็บไว้เพื่ออ้างอิงประวัติ
 
 ## สถาปัตยกรรมปัจจุบัน
 
 ```text
-Internet / Tailscale → Traefik → CrowdSec AppSec / OWASP CRS → แอปปลายทาง
-                                     │ alerts
-                                     ↓
-                         watcher → PostgreSQL → Redis Streams
-                                                      ↓
-                                         worker → Ollama Analysis
-                                                      ↓
-                         Detection (campaigns) + Decision (YAML policy)
-                                                      ↓
-                                   Human approval / L1 auto-execution
-                                                      ↓
-                                         Defense → CrowdSec IP ban
+HTTP: Internet / Tailscale → Traefik → CrowdSec AppSec / CRS → Protected apps
+      Traefik access log → Request Collector → PostgreSQL request history
 
-Analyzed incidents → Ollama embeddings → pgvector → บริบทสำหรับเหตุการณ์ถัดไป
+Events: CrowdSec LAPI → Watcher ───────────────────────┐
+        Suricata EVE + Wazuh alerts → Sensor Ingestion ┴→ PostgreSQL (persist first)
+        PostgreSQL outbox → Redis Streams → Worker / Analysis ↔ Local Ollama
+        Analysis results → PostgreSQL → Detection + Decision / Policy Gate
+        Policy → Human approval (default) → Defense Executor → CrowdSec IP ban / TTL
+
+Memory: Analyzed incidents → Ollama embeddings → pgvector → Analysis context
+Triage: Wazuh incidents → Priority queue → Cleaned context → Redis cache
+        Cache hit → SSE report; miss/bypass → Local Ollama → SSE report + cache
 ```
 
 LLM ไม่อยู่ในเส้นทางรอรับ HTTP request และไม่สั่งบล็อกโดยตรง Learning ใช้ RAG จากเหตุการณ์เก่า ไม่ได้ฝึกโมเดลใหม่
