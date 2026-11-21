@@ -126,32 +126,10 @@ async def set_embedding(alert_id: str, embedding: list[float]) -> None:
 async def search_similar(
     embedding: list[float], k: int = 3, exclude_alert_id: str | None = None
 ) -> list[dict]:
-    """Top-k similar analyzed incidents by cosine distance (pgvector <=>)."""
-    vec = "[" + ",".join(f"{x:.7f}" for x in embedding) + "]"
-    async with await _connect() as conn:
-        cur = await conn.execute(
-            """
-            SELECT alert_id, kind, severity, reason, source_ip,
-                   analysis->>'attack_type' AS attack_type,
-                   1 - (embedding <=> %s::vector) AS similarity
-              FROM incidents
-             WHERE embedding IS NOT NULL AND alert_id <> COALESCE(%s, '')
-             ORDER BY embedding <=> %s::vector
-             LIMIT %s
-            """,
-            (vec, exclude_alert_id or "", vec, max(1, min(k, 20))),
-        )
-        rows = await cur.fetchall()
-    cols = [
-        "alert_id",
-        "kind",
-        "severity",
-        "reason",
-        "source_ip",
-        "attack_type",
-        "similarity",
-    ]
-    return [dict(zip(cols, r)) for r in rows]
+    """Compatibility entry point: only current reviewed true-positive memory."""
+    from app import reviews
+
+    return await reviews.search_memory(embedding, k, exclude_alert_id)
 
 
 async def embedding_stats() -> dict:
@@ -164,7 +142,19 @@ async def embedding_stats() -> dict:
             """
         )
         row = await cur.fetchone()
-    return {"embedded": row[0], "analyzed": row[1]}
+    # Keep legacy vectors intact, while reporting the actual retrieval-eligible memory.
+    from app import reviews
+
+    reviewed = await reviews.stats()
+    return {
+        "embedded": reviewed["memory_ready"],
+        "analyzed": row[1],
+        "legacy_embedded": row[0],
+        "reviewed": reviewed["reviewed"],
+        "eligible": reviewed["eligible"],
+        "pending": reviewed["eligible"] - reviewed["memory_ready"],
+        "memory_policy": reviewed["memory_policy"],
+    }
 
 
 async def _connect() -> psycopg.AsyncConnection:

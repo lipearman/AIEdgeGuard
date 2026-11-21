@@ -806,6 +806,7 @@ async function openDetail(index) {
         );
         content.append(analysis);
       }
+      window.EdgeReviews.attach(content, row);
       content.append(node("h3", "", "Captured payload"));
       const payload = findPayload(raw);
       content.append(
@@ -1013,10 +1014,14 @@ $("refreshDashboard").addEventListener("click", () => {
 });
 $("closeDetail").addEventListener("click", () => $("detailDialog").close());
 $("detailDialog").addEventListener("close", () => {
+  window.EdgeReviews.cancel();
   window.EdgeIntelligence.cancelInvestigation();
   detailSequence++;
   detailAbort?.abort();
   selectedRecord = null;
+});
+window.addEventListener("edge-review-saved", () => {
+  window.EdgeReviews.refreshStats();
 });
 $("previousDetail").addEventListener("click", () =>
   openDetail(selectedIndex - 1),

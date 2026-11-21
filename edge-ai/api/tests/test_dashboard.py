@@ -105,7 +105,7 @@ class PagingDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await dashboard_db.init_schema()
         async with await db._connect() as conn:
             await conn.execute(
-                "TRUNCATE gateway_requests,incidents,campaigns,decisions,attacks RESTART IDENTITY"
+                "TRUNCATE gateway_requests,incidents,campaigns,decisions,attacks RESTART IDENTITY CASCADE"
             )
             await conn.commit()
 

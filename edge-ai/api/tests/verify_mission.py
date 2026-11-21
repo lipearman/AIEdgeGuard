@@ -123,7 +123,13 @@ def run():
                         ],
                     }
                 elif path == "/api/v1/learning/stats":
-                    data = {"embedded": 441, "analyzed": 441, "dim": 768}
+                    data = {
+                        "embedded": 3,
+                        "eligible": 5,
+                        "legacy_embedded": 441,
+                        "analyzed": 441,
+                        "dim": 768,
+                    }
                 elif path == "/api/v1/visibility":
                     data = {
                         "layers": {
@@ -218,7 +224,14 @@ def run():
             state.update(offline=False, attack=True)
             page.locator("#refresh").click()
             page.wait_for_function("!document.querySelector('#attack').disabled")
-            page.on("dialog", lambda dialog: dialog.accept())
+            page.on(
+                "dialog",
+                lambda dialog: (
+                    dialog.accept("browser-test-key")
+                    if dialog.type == "prompt"
+                    else dialog.accept()
+                ),
+            )
             page.locator("#attack").click()
             page.wait_for_function(
                 "document.querySelector('#attackResult').textContent.includes('4/5')"
@@ -246,7 +259,9 @@ def run():
             "document.querySelector('#refreshInfo').textContent.includes('อัปเดต')"
         )
         if not page.locator("#defenseCanvas").is_hidden():
-            assert page.locator("#defenseCanvas").get_attribute("data-paused") == "false"
+            assert (
+                page.locator("#defenseCanvas").get_attribute("data-paused") == "false"
+            )
         browser.close()
     print(
         "Mission checks passed: five widths, 3 prefixes, 3 defense layers, filters, incident detail, XSS, partial API failure, recovery, lab controls, motion/reduced-motion"

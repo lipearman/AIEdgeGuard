@@ -228,18 +228,25 @@ async def _process(r, msg_id, fields) -> None:
             event["evidence"] = {"threat_intelligence": enrichment, **event["evidence"]}
     except Exception as exc:  # noqa: BLE001 — enrichment must not stop ingestion/analysis
         sys.stderr.write(f"[worker] KEV context unavailable: {type(exc).__name__}\n")
-    # Phase 9: similar past incidents as RAG context (learning loop)
+    memory_sources = []
+    # Phase 9: latest reviewed true positives only; references are persisted with this analysis.
     if settings.learning_enabled:
         try:
             stext = f"kind: {incident.get('kind')}\nreason: {incident.get('reason')}"
             similar = await learning.similar_context(stext, exclude_alert_id=alert_id)
             if similar:
+                memory_sources = [{"incident_id": s.get("incident_id"), "alert_id": s["alert_id"], "review_id": s.get("review_id"),
+                                   "review_revision": s.get("review_revision")} for s in similar]
                 event["evidence"]["similar_past_incidents"] = [
                     {
                         "alert_id": s["alert_id"],
                         "attack_type": s.get("attack_type"),
                         "similarity": round(float(s.get("similarity") or 0), 2),
                         "reason": str(s.get("reason") or "")[:80],
+                        "review_id": s.get("review_id"),
+                        "review_revision": s.get("review_revision"),
+                        "review_verdict": s.get("review_verdict"),
+                        "review_rationale": str(s.get("review_rationale") or "")[:400],
                     }
                     for s in similar
                 ]
@@ -275,6 +282,8 @@ async def _process(r, msg_id, fields) -> None:
         force = True
         summary = f"[fallback] {summary}"
 
+    analysis["reviewed_memory_sources"] = memory_sources
+    analysis["memory_policy"] = "latest_true_positive_reviews_only"
     stored = await db.set_analysis(alert_id, analysis, force=force)
     await r.xack(STREAM, GROUP, msg_id)
     sys.stderr.write(f"[worker] {alert_id}: stored={stored} summary={summary}\n")

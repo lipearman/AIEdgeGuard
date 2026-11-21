@@ -1,0 +1,102 @@
+.review-memory-summary {
+  margin-bottom: 26px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.review-section {
+  border-block: 1px solid var(--line);
+  margin: 24px 0;
+  padding: 20px 0;
+}
+.review-section h3 {
+  font: 600 24px/1.2 var(--display);
+  margin-bottom: 10px;
+}
+.review-section p {
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.review-status {
+  color: var(--cyan-soft);
+  margin: 10px 0;
+}
+.review-status.error {
+  color: var(--red);
+}
+.review-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+.review-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.review-form input,
+.review-form select,
+.review-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px;
+  font: inherit;
+}
+.review-form textarea {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.7;
+}
+.review-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.review-history {
+  margin-top: 20px;
+}
+.review-history summary {
+  cursor: pointer;
+  color: var(--cyan-soft);
+  font-size: 13px;
+  padding: 8px 0;
+}
+.review-history article {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.review-history small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.review-sources {
+  padding: 12px 0;
+}
+.review-sources a {
+  display: block;
+  color: var(--cyan-soft);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.8;
+  text-underline-offset: 3px;
+}
+@media (max-width: 500px) {
+  .review-fields {
+    grid-template-columns: 1fr;
+  }
+}

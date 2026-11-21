@@ -356,7 +356,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
         await db.init_schema()
         async with await db._connect() as conn:
             await conn.execute(
-                "TRUNCATE incidents, campaigns, decisions, attacks RESTART IDENTITY"
+                "TRUNCATE incidents, campaigns, decisions, attacks RESTART IDENTITY CASCADE"
             )
             await conn.commit()
 

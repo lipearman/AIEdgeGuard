@@ -21,8 +21,10 @@ Open `/AIEdgeGuard/dashboard#intelligence`; use **Inspect → Investigate timeli
 
 ## Release 2 Reviewed knowledge and identity
 
-1. Add True Positive/False Positive/Unknown feedback with append-only audit, actor identity, rationale and versioned corrections. Keep analyst labels separate from raw evidence and model output.
-2. Use reviewed labels in memory/evaluation. Never erase false-positive audit history or silently retrieve false positives as confirmed attacks. Feedback does not automatically activate a defense rule.
+**Release 2A delivered 2026-11-21:** [Analyst feedback and reviewed AI memory](analyst-reviews.md) implements items 1–2 below with append-only revision history, concurrency/idempotency guards and latest-TP-only retrieval. Reviewer labels are self-declared behind the shared Operation Key, so verified named identity remains future work. Asset Inventory and the other items remain planned.
+
+1. Delivered: True Positive/False Positive/Unknown feedback with append-only audit, declared reviewer label/authorization method, rationale and versioned corrections. Analyst annotations stay separate from raw evidence/model output. Authenticated actor identity and evaluation metrics remain planned.
+2. Delivered for RAG: latest reviewed True Positives only; False Positive/Unknown/unreviewed and stale vectors are excluded without deleting audit history. Feedback does not activate a defense rule. Labeled evaluation/benchmarking remains planned.
 3. Add verified asset/application/service identity, versions, ownership and criticality. Use explicit mappings to link WAF, IDS and EDR instead of shared addresses.
 4. Add NVD/CVE, EPSS, MITRE ATT&CK and selected IOC sources incrementally, checking schemas, licenses/quotas, provenance, freshness and deduplication for each.
 5. Persist structured citations, prompt/model versions and product/version applicability checks, separate from model-proposed CVE mentions.

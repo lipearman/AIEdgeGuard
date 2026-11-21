@@ -262,10 +262,13 @@ function renderPackets(data) {
 function renderMemory(data) {
   byId("embeddedCount").textContent = fmt(data.embedded);
   byId("embeddingNote").textContent =
-    `${data.dim}d · ${fmt(data.analyzed)} analyzed`;
+    data.eligible === undefined
+      ? `${data.dim}d · ${fmt(data.analyzed)} analyzed`
+      : `${data.dim}d · ${fmt(data.eligible)} reviewed TP eligible`;
   byId("embeddingBar").style.width =
-    (data.analyzed ? Math.min(100, (data.embedded / data.analyzed) * 100) : 0) +
-    "%";
+    ((data.eligible ?? data.analyzed)
+      ? Math.min(100, (data.embedded / (data.eligible ?? data.analyzed)) * 100)
+      : 0) + "%";
 }
 function renderVisibility(data) {
   const colors = {
@@ -409,7 +412,9 @@ async function testLiveFire() {
   if (attackMode !== "lab" || attackRunning) return;
   if (!confirm("เริ่มทดสอบกับ Juice Shop ใน lab? การทดสอบจะสร้าง alert จริง"))
     return;
-  const opkey = sessionStorage.opkey || prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
+  const opkey =
+    sessionStorage.opkey ||
+    prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
   if (!opkey) {
     byId("attackResult").textContent = "ยกเลิก — ไม่ได้ใส่ Operation Key";
     return;

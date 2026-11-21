@@ -202,7 +202,7 @@ class IntelligenceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await intelligence.init_schema()
         async with await db._connect() as conn:
             await conn.execute(
-                "TRUNCATE incidents,decisions,gateway_requests,known_vulnerabilities RESTART IDENTITY"
+                "TRUNCATE incidents,decisions,gateway_requests,known_vulnerabilities RESTART IDENTITY CASCADE"
             )
             await conn.execute(
                 "UPDATE intelligence_feed SET last_success=NULL,released_at=NULL,error='',record_count=0"

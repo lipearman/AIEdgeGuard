@@ -97,6 +97,7 @@ python edge-ai/api/tests/verify_mission.py
 python edge-ai/api/tests/verify_dashboard.py
 python edge-ai/api/tests/verify_triage.py
 python edge-ai/api/tests/verify_intelligence.py
+python edge-ai/api/tests/verify_reviews.py
 ```
 
 สคริปต์จำลอง API ทั้งหมด ไม่ยิงโจมตีจริง และเก็บภาพที่ `.artifacts/`
@@ -117,6 +118,8 @@ Compose gateway ผูกกับ network และไฟล์ของแอ�
 ## งานต่อยอด
 
 เริ่มเฟสพื้นฐาน V2 แล้ว: [Intelligence และ Investigation](docs/v2-foundation.md) เพิ่ม CISA KEV อัปเดตรายวัน, CPU traffic baseline, candidate timeline และหลักฐานประกอบการตรวจสอบ ดูสิ่งที่ส่งมอบกับงานลำดับถัดไปใน [Roadmap V2](docs/roadmap-v2.md)
+
+Release 2A เพิ่ม [Analyst Feedback และ Reviewed AI Memory](docs/analyst-reviews.md): ตรวจ TP/FP/Unknown พร้อมประวัติ revision และใช้เฉพาะ latest True Positive ใน RAG โดยเก็บ raw evidence, ผล AI และ legacy vectors เดิมไว้
 
 1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
 2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)

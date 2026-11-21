@@ -412,7 +412,13 @@
     }
   });
   window.EdgeIntelligence = {
-    refresh: () => Promise.all([feed(), catalog(), behavior()]),
+    refresh: () =>
+      Promise.all([
+        feed(),
+        catalog(),
+        behavior(),
+        window.EdgeReviews.refreshStats(),
+      ]),
     attach,
     cancelInvestigation: () => investigationAbort?.abort(),
   };

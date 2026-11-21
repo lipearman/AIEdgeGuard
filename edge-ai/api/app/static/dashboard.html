@@ -11,8 +11,10 @@
     <link rel="stylesheet" href="static/triage.css?v=20261113-final" />
     <script src="static/triage.js?v=20261113-final" defer></script>
     <link rel="stylesheet" href="static/intelligence.css?v=20261121" />
-    <script src="static/intelligence.js?v=20261121" defer></script>
-    <script src="static/dashboard.js?v=20261121-investigation" defer></script>
+    <script src="static/intelligence.js?v=20261121-reviews" defer></script>
+    <link rel="stylesheet" href="static/reviews.css?v=20261121" />
+    <script src="static/reviews.js?v=20261121-v1" defer></script>
+    <script src="static/dashboard.js?v=20261121-reviews" defer></script>
   </head>
   <body class="dashboard-page">
     <svg
@@ -369,6 +371,31 @@
           aria-labelledby="tab-intelligence"
           hidden
         >
+          <section
+            class="review-memory-summary"
+            aria-labelledby="reviewMemoryTitle"
+          >
+            <div class="intel-heading">
+              <div>
+                <h3 id="reviewMemoryTitle">Reviewed AI memory</h3>
+                <p>
+                  Latest True Positive reviews only · revision-bound retrieval
+                </p>
+              </div>
+              <button id="reviewStatsRefresh" class="quiet-button">
+                Refresh review status
+              </button>
+            </div>
+            <p id="reviewMemoryStatus" class="intel-status" role="status">
+              Loading reviewed memory…
+            </p>
+            <p id="reviewMemoryCounts" class="intel-scope"></p>
+            <p class="intel-scope">
+              เปิด Incidents → Inspect → Analyst review เพื่อตรวจผล Legacy
+              vectors ยังคงเก็บไว้ แต่ unreviewed / False Positive / Unknown
+              ไม่ถูกดึงเข้า RAG ไม่มีการแก้กฎหรือบล็อกจาก review
+            </p>
+          </section>
           <div class="intel-heading">
             <div>
               <h3>Known exploited vulnerabilities</h3>

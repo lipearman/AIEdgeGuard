@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-21T05:13:34.471453+00:00",
+  "generatedAt": "2026-11-21T05:54:51.829875+00:00",
   "title": "Design System: LACD Defense Console",
   "extensions": {
     "scope": "Mission Control and Dashboard / Defense Workspace; preserve their distinct overview and record-oriented layouts.",
@@ -35,7 +35,18 @@
       ".impeccable/review/investigation-1440.png",
       ".impeccable/review/investigation-390.png",
       ".impeccable/review/investigation-policy-1440.png",
-      ".impeccable/review/investigation-policy-390.png"
+      ".impeccable/review/investigation-policy-390.png",
+      "docs/analyst-reviews.md",
+      "edge-ai/api/app/static/reviews.css",
+      "edge-ai/api/app/static/reviews.js",
+      "edge-ai/api/app/static/mission.html",
+      ".impeccable/review/reviews-1440.png",
+      ".impeccable/review/reviews-768.png",
+      ".impeccable/review/reviews-390.png",
+      ".impeccable/review/reviews-history-1440.png",
+      ".impeccable/review/reviews-history-390.png",
+      ".impeccable/review/review-memory-live-1440.png",
+      ".impeccable/review/review-memory-live-390.png"
     ],
     "colorMeta": {
       "bg": {
@@ -396,6 +407,10 @@
       {
         "name": "intelligence-compact-max",
         "value": "400px"
+      },
+      {
+        "name": "review-single-column-max",
+        "value": "500px"
       }
     ],
     "dashboardBackground": {
@@ -436,6 +451,17 @@
       "investigation": "On-demand existing drawer; bounded decoded/masked target and syntax hints; source-vs-AI CVE provenance and KEV snapshot freshness; candidate timeline with reasons, not verified causation; native policy/response details with stored checks/results.",
       "limits": "No new body capture or asset applicability claim; no-match is not safety; timeline pages up to 50 can change with late arrivals; latest 20 linked decisions with truncation notice; no new enforcement.",
       "typography": "23px investigation section heading, 21px result subhead, 12px/1.8 body, 11px candidate metadata; code max-height 280px/local scrolling."
+    },
+    "analystReview": {
+      "scope": "Incident drawer Analyst review; Intelligence reviewed-memory summary; Mission Reviewed TP embedded metric. Existing colors/fonts unchanged.",
+      "layout": "Review section 24px vertical margins/20px padding; form gap 14px; two equal field columns with 12px gap become one at <=500px; 10px control padding/4px radius; rationale min-height 110px and vertical resize.",
+      "typography": "24px/1.2 condensed heading; 12px labels/body with 1.8 paragraph line height; 11px history metadata; wrap labels/rationale/provenance.",
+      "controls": "Native reviewer text input, TP/FP/Unknown select, optional type/severity correction, required rationale textarea; Append review revision and Reload latest.",
+      "identity": "Self-declared reviewer label; Operation Key authorizes save, not authenticated named identity or verified ground truth.",
+      "states": "Latest verdict/revision and ready, awaiting embedding, waiting for AI analysis or excluded from retrieval. Unknown revision/unavailable disables save; CAS conflict retains draft until Reload latest; ambiguous network retry uses same idempotent submission.",
+      "history": "Newest-first paginated append-only revisions; immutable historical review links used by stored analysis remain separate from current revision.",
+      "memory": "Latest TP + completed stored analysis + current review/model vector only. FP/Unknown/unreviewed/stale excluded; revised TP waits for embedding; legacy vectors retained and excluded from reviewed count.",
+      "boundary": "Review annotations do not edit raw events/analysis/decisions or authorize shell, policy, ban/unblock actions; RAG augmentation is not training or measured accuracy."
     }
   },
   "components": [
@@ -530,7 +556,7 @@
   ],
   "narrative": {
     "northStar": "The Local Defense Console",
-    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. AI Triage extends Dashboard with an advisory Wazuh priority queue and streamed local report, using the same visual language. Intelligence adds a local KEV catalog, explainable CPU traffic baseline and on-demand investigation evidence within that existing world. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
+    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. AI Triage extends Dashboard with an advisory Wazuh priority queue and streamed local report, using the same visual language. Intelligence adds a local KEV catalog, explainable CPU traffic baseline and on-demand investigation evidence within that existing world. Analyst review adds declared assessments and revision history in the Incident drawer, with reviewed-memory scope visible on Intelligence and Mission. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
     "keyCharacteristics": [
       "Dense operational hierarchy with a dominant central scene.",
       "Local bilingual fonts, thin cyan line icons and tabular metrics.",
