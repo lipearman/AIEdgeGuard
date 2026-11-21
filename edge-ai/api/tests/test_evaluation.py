@@ -58,6 +58,23 @@ def labels(count=150):
 
 
 class ReplayTests(unittest.IsolatedAsyncioTestCase):
+    def test_readiness_agrees_with_replay_and_reports_coverage_shortfall(self):
+        data, truth = corpus(), labels()
+        windows = data["snapshot"]["windows"]
+        report = ev.readiness(windows, truth)
+        self.assertEqual(report["state"], "sample_floor_met")
+        self.assertIsNotNone(
+            ev.replay(data, truth)["metrics"]["test"]["median_mad"]["recall"]
+        )
+        windows[0]["eligible"] = False
+        for i in range(120, 129):
+            windows[i]["eligible"] = False
+        report = ev.readiness(windows, truth)
+        self.assertEqual(report["state"], "needs_eligible_labeled_windows")
+        self.assertEqual(report["training"]["blocking_window_indices"], [0])
+        self.assertEqual(report["held_out_test"]["lab_attack_shortfall"], 1)
+        self.assertFalse(report["held_out_test"]["can_fit_class_minimums"])
+
     def test_gap_union_and_no_future_leakage(self):
         now = datetime.now(UTC)
         spans = [
@@ -361,6 +378,40 @@ class EvaluationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         )
         newer = await ev.run_replay(identity, uuid4())
         self.assertNotEqual(newer["input_hash"], run["input_hash"])
+        self.assertTrue(
+            (await ev.dataset_readiness(identity))["latest_replay_uses_current_labels"]
+        )
+        batch = ev.LabelManifest(
+            dataset_sha256=dataset["content_hash"],
+            labels=[
+                label.model_copy(update={"window_index": 1, "request_id": uuid4()}),
+                label.model_copy(
+                    update={
+                        "window_index": 2,
+                        "request_id": uuid4(),
+                        "expected_revision": 1,
+                    }
+                ),
+            ],
+        )
+        with self.assertRaises(main.HTTPException) as error:
+            await ev.save_manifest(identity, batch)
+        self.assertEqual(error.exception.status_code, 409)
+        self.assertEqual(
+            {row["window_index"] for row in (await ev.detail(identity))["labels"]}, {0}
+        )
+        batch.labels[1].expected_revision = 0
+        first = await ev.save_manifest(identity, batch)
+        second = await ev.save_manifest(identity, batch)
+        self.assertEqual(first, second)
+        self.assertFalse(
+            (await ev.dataset_readiness(identity))["latest_replay_uses_current_labels"]
+        )
+        with self.assertRaises(main.HTTPException) as error:
+            await ev.save_manifest(
+                identity, batch.model_copy(update={"dataset_sha256": "0" * 64})
+            )
+        self.assertEqual(error.exception.status_code, 409)
         async with await db._connect() as conn:
             await conn.execute(
                 """INSERT INTO gateway_requests(fingerprint,observed_at,host,router,raw)

@@ -48,6 +48,21 @@ Method references: [NIST EWMA control charts](https://www.itl.nist.gov/div898/ha
 
 ## Operator usage
 
+### Preparing the held-out evaluation
+
+Use the actual host/router and UTC period evidenced by change, application or authorized lab records. Select a continuous training period with known normal traffic. The chronological split is fixed at 60/20/20. A five-hour snapshot contains only 12 held-out windows, so it cannot meet the reporting floor of 20 eligible normal and 5 eligible lab windows. With complete coverage, 121 five-minute windows (10 hours 5 minutes) are the shortest possible range that allocates 25 windows to the test split. Choose the range using source evidence and chronology before inspecting replay results.
+
+Export the dataset and prepare a local JSON manifest. `dataset_sha256` is the exported `content_hash`. `labels` contains the same row objects as the single-label endpoint, each with its own window index, current expected revision, verdict, reporter, rationale referencing supporting evidence, and request UUID. Keep UUIDs on retry. A mismatch in checksum, ineligible non-unknown window, an out-of-range index, or a stale revision aborts the entire import. The manifest can contain up to 2,016 distinct windows. Use `unknown` where the source evidence cannot establish a class. Keep live operational evidence out of source control.
+
+```powershell
+python tools/evaluate_behavior.py readiness DATASET_UUID
+python tools/evaluate_behavior.py manifest DATASET_UUID labels.json
+python tools/evaluate_behavior.py readiness DATASET_UUID
+python tools/evaluate_behavior.py replay DATASET_UUID RUN_UUID
+```
+
+`sample_floor_met` means the stored labels and coverage can produce the defined descriptive test metrics. If the most recent replay uses older label revisions, create a new replay UUID. For Phase 3 acceptance, record the held-out report ID and false positives/misses together with an independently corroborated incident review and its verifier and source. The shared Operation Key represents write authorization, so authenticated reviewer identity and separate corroboration must be established by the operator.
+
 Run from the repository root. Reads are public under the existing preview configuration; writes require `X-Operation-Key` when configured. The CLI reads `EDGEGUARD_OPERATION_KEY` from the current environment; it never places the key in arguments or output. Do not commit keys or real corpus exports to GitHub.
 
 ```powershell
@@ -99,6 +114,8 @@ Default base URL is `http://127.0.0.1:8099`. Use `--base-url https://llm-server.
 | PUT `/datasets/{uuid}` | Gated immutable snapshot creation, idempotent by UUID/input |
 | GET `/datasets/{uuid}` | Snapshot, latest label per window and latest50 run summaries |
 | POST `/datasets/{uuid}/labels` | Gated append-only label with revision/idempotency checks |
+| POST `/datasets/{uuid}/label-manifest` | Gated atomic import of explicit labels pinned to a snapshot checksum |
+| GET `/datasets/{uuid}/readiness` | Coverage and labeled sample shortfalls, plus latest replay label currency |
 | GET `/datasets/{uuid}/labels/{window_index}?page=1` | Paginated label history, 50 revisions/page |
 | POST `/datasets/{uuid}/runs/{run_uuid}` | Gated deterministic replay and immutable report |
 | GET `/datasets/{uuid}/runs?page=1&page_size=10` | Paginated saved run summaries, maximum page size50 |

@@ -22,10 +22,18 @@ def main():
     sub.add_parser("status")
     listing = sub.add_parser("datasets")
     listing.add_argument("--page", type=int, default=1)
-    for command in ("create", "show", "label", "replay", "run"):
+    for command in (
+        "create",
+        "show",
+        "label",
+        "manifest",
+        "readiness",
+        "replay",
+        "run",
+    ):
         entry = sub.add_parser(command)
         entry.add_argument("id", type=UUID)
-        if command in ("create", "label"):
+        if command in ("create", "label", "manifest"):
             entry.add_argument("payload", type=Path)
         if command == "replay":
             entry.add_argument("run_id", type=UUID)
@@ -37,13 +45,17 @@ def main():
         path = f"runs/{args.id}"
     else:
         path = f"datasets/{args.id}"
-        if args.action in ("create", "label"):
+        if args.action in ("create", "label", "manifest"):
             data = json.dumps(
                 json.loads(args.payload.read_text(encoding="utf-8-sig"))
             ).encode()
             method = "PUT" if args.action == "create" else "POST"
             if args.action == "label":
                 path += "/labels"
+            elif args.action == "manifest":
+                path += "/label-manifest"
+        elif args.action == "readiness":
+            path += "/readiness"
         elif args.action == "replay":
             path += f"/runs/{args.run_id}"
             method, data = "POST", b""

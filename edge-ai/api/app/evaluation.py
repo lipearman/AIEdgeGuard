@@ -104,6 +104,19 @@ class LabelInput(Input):
     request_id: UUID
 
 
+class LabelManifest(Input):
+    dataset_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    labels: list[LabelInput] = Field(min_length=1, max_length=2016)
+
+    @model_validator(mode="after")
+    def unique_rows(self):
+        if len({row.window_index for row in self.labels}) != len(self.labels):
+            raise ValueError("A manifest must contain at most one label per window")
+        if len({row.request_id for row in self.labels}) != len(self.labels):
+            raise ValueError("Each manifest row needs its own request UUID")
+        return self
+
+
 async def init_schema():
     async with await db._connect() as conn:
         await conn.execute(SCHEMA)
@@ -248,6 +261,43 @@ def authentication():
     )
 
 
+async def append_label(cur, identity, body):
+    await cur.execute(
+        "SELECT * FROM evaluation_labels WHERE dataset_id=%s AND request_id=%s",
+        (identity, body.request_id),
+    )
+    existing = await cur.fetchone()
+    if existing:
+        if any(
+            existing[k] != getattr(body, k)
+            for k in ("window_index", "label", "declared_by", "rationale")
+        ):
+            raise HTTPException(409, "Request ID already used for a different label")
+        return existing
+    await cur.execute(
+        "SELECT COALESCE(max(revision),0) AS revision FROM evaluation_labels WHERE dataset_id=%s AND window_index=%s",
+        (identity, body.window_index),
+    )
+    revision = (await cur.fetchone())["revision"]
+    if revision != body.expected_revision:
+        raise HTTPException(409, "Label changed; reload before resubmitting")
+    await cur.execute(
+        """INSERT INTO evaluation_labels(dataset_id,window_index,revision,label,
+      declared_by,rationale,authentication,request_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
+        (
+            identity,
+            body.window_index,
+            revision + 1,
+            body.label,
+            body.declared_by,
+            body.rationale,
+            authentication(),
+            body.request_id,
+        ),
+    )
+    return await cur.fetchone()
+
+
 async def save_label(identity, body):
     async with await db._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
         await cur.execute("SELECT pg_advisory_xact_lock(84320114)")
@@ -257,44 +307,53 @@ async def save_label(identity, body):
         dataset = await cur.fetchone()
         if not dataset or body.window_index >= len(dataset["snapshot"]["windows"]):
             raise HTTPException(404, "Dataset/window not found")
-        await cur.execute(
-            "SELECT * FROM evaluation_labels WHERE dataset_id=%s AND request_id=%s",
-            (identity, body.request_id),
-        )
-        existing = await cur.fetchone()
-        if existing:
-            if any(
-                existing[k] != getattr(body, k)
-                for k in ("window_index", "label", "declared_by", "rationale")
-            ):
-                raise HTTPException(
-                    409, "Request ID already used for a different label"
-                )
-            return existing
-        await cur.execute(
-            "SELECT COALESCE(max(revision),0) AS revision FROM evaluation_labels WHERE dataset_id=%s AND window_index=%s",
-            (identity, body.window_index),
-        )
-        revision = (await cur.fetchone())["revision"]
-        if revision != body.expected_revision:
-            raise HTTPException(409, "Label changed; reload before resubmitting")
-        await cur.execute(
-            """INSERT INTO evaluation_labels(dataset_id,window_index,revision,label,
-          declared_by,rationale,authentication,request_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
-            (
-                identity,
-                body.window_index,
-                revision + 1,
-                body.label,
-                body.declared_by,
-                body.rationale,
-                authentication(),
-                body.request_id,
-            ),
-        )
-        saved = await cur.fetchone()
+        saved = await append_label(cur, identity, body)
         await conn.commit()
         return saved
+
+
+async def save_manifest(identity, body):
+    async with await db._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute("SELECT pg_advisory_xact_lock(84320114)")
+        await cur.execute(
+            "SELECT snapshot,content_hash FROM evaluation_datasets WHERE id=%s",
+            (identity,),
+        )
+        dataset = await cur.fetchone()
+        if not dataset:
+            raise HTTPException(404, "Dataset not found")
+        if dataset["content_hash"] != body.dataset_sha256:
+            raise HTTPException(
+                409, "Manifest checksum differs from the pinned dataset"
+            )
+        windows = dataset["snapshot"]["windows"]
+        saved = []
+        for row in body.labels:
+            if row.window_index >= len(windows):
+                raise HTTPException(
+                    422, f"Window {row.window_index} is outside this dataset"
+                )
+            if row.label != "unknown" and not windows[row.window_index]["eligible"]:
+                raise HTTPException(
+                    422, f"Window {row.window_index} lacks eligible coverage"
+                )
+            try:
+                saved.append(await append_label(cur, identity, row))
+            except HTTPException as exc:
+                raise HTTPException(
+                    exc.status_code, f"Window {row.window_index}: {exc.detail}"
+                ) from exc
+        await conn.commit()
+        return {"dataset_id": identity, "labels": saved}
+
+
+MIN_TRAIN = 12
+MIN_TEST_NORMAL = 20
+MIN_TEST_LAB = 5
+
+
+def split_indices(count):
+    return count * 3 // 5, count * 4 // 5
 
 
 def metric(predictions):
@@ -308,7 +367,7 @@ def metric(predictions):
                 + ("p" if predicted else "n")
             ] += 1
     positives, negatives = counts["tp"] + counts["fn"], counts["tn"] + counts["fp"]
-    enough = positives >= 5 and negatives >= 20
+    enough = positives >= MIN_TEST_LAB and negatives >= MIN_TEST_NORMAL
     return {
         **counts,
         "state": "descriptive_only" if enough else "insufficient_labeled_test_data",
@@ -323,7 +382,7 @@ def metric(predictions):
 def replay(dataset, labels):
     """Fixed parameters; training only in the past. Test labels never enter detector state."""
     windows = dataset["snapshot"]["windows"]
-    train_end, test_start = len(windows) * 3 // 5, len(windows) * 4 // 5
+    train_end, test_start = split_indices(len(windows))
     truth = {r["window_index"]: r["label"] for r in labels}
     train = windows[:train_end]
     report = {
@@ -364,7 +423,7 @@ def replay(dataset, labels):
             for r in labels
         ],
     }
-    if len(train) < 12 or any(
+    if len(train) < MIN_TRAIN or any(
         not w["eligible"] or truth.get(w["index"]) != "normal" for w in train
     ):
         return {
@@ -481,6 +540,86 @@ async def label_window(identity: UUID, body: LabelInput):
 )
 async def create_run(identity: UUID, run_id: UUID):
     return await run_replay(identity, run_id)
+
+
+@router.post(
+    "/datasets/{identity}/label-manifest", dependencies=[Depends(operation_key)]
+)
+async def import_label_manifest(identity: UUID, body: LabelManifest):
+    return await save_manifest(identity, body)
+
+
+def readiness(windows, labels):
+    truth = {row["window_index"]: row["label"] for row in labels}
+    train_end, test_start = split_indices(len(windows))
+    training, test = windows[:train_end], windows[test_start:]
+    blockers = [
+        w["index"]
+        for w in training
+        if not w["eligible"] or truth.get(w["index"]) != "normal"
+    ]
+    eligible = [w for w in test if w["eligible"]]
+    normal = sum(truth.get(w["index"]) == "normal" for w in eligible)
+    lab = sum(truth.get(w["index"]) == "lab_attack" for w in eligible)
+    normal_shortfall = max(0, MIN_TEST_NORMAL - normal)
+    lab_shortfall = max(0, MIN_TEST_LAB - lab)
+    ready = (
+        len(training) >= MIN_TRAIN
+        and not blockers
+        and not normal_shortfall
+        and not lab_shortfall
+    )
+    return {
+        "state": "sample_floor_met" if ready else "needs_eligible_labeled_windows",
+        "training": {
+            "windows": len(training),
+            "minimum": MIN_TRAIN,
+            "blocking_window_indices": blockers,
+        },
+        "held_out_test": {
+            "windows": len(test),
+            "eligible": len(eligible),
+            "normal": normal,
+            "lab_attack": lab,
+            "unclassified": len(eligible) - normal - lab,
+            "normal_shortfall": normal_shortfall,
+            "lab_attack_shortfall": lab_shortfall,
+            "can_fit_class_minimums": len(eligible) >= MIN_TEST_NORMAL + MIN_TEST_LAB,
+        },
+        "scope": "Checks sample floors for replay. Operator acceptance and independent evidence review are separate requirements.",
+    }
+
+
+@router.get("/datasets/{identity}/readiness")
+async def dataset_readiness(identity: UUID):
+    async with await db._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        await cur.execute(
+            "SELECT snapshot,content_hash FROM evaluation_datasets WHERE id=%s",
+            (identity,),
+        )
+        dataset = await cur.fetchone()
+        if not dataset:
+            raise HTTPException(404, "Dataset not found")
+        await cur.execute(
+            "SELECT DISTINCT ON(window_index) window_index,label,id FROM evaluation_labels WHERE dataset_id=%s ORDER BY window_index,revision DESC",
+            (identity,),
+        )
+        labels = await cur.fetchall()
+        await cur.execute(
+            "SELECT id, report->'label_revisions' AS labels FROM evaluation_runs WHERE dataset_id=%s ORDER BY created_at DESC,id DESC LIMIT 1",
+            (identity,),
+        )
+        latest = await cur.fetchone()
+    latest_matches = latest is not None and {
+        str(row["id"]) for row in (latest["labels"] or [])
+    } == {str(row["id"]) for row in labels}
+    return {
+        **readiness(dataset["snapshot"]["windows"], labels),
+        "dataset_sha256": dataset["content_hash"],
+        "latest_replay_id": latest["id"] if latest else None,
+        "latest_replay_uses_current_labels": latest_matches,
+    }
 
 
 @router.get("/datasets")

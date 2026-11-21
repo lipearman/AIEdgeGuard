@@ -51,6 +51,8 @@ Gate: replay held-out data, publish false positives/misses and distinguish real 
 
 The evaluation gate requires an operator-labeled corpus with eligible training and held-out windows, including evidence-backed normal and authorized lab classifications. The production registry has not been seeded with such a corpus. Independent review requires authenticated reviewer identities and a source that can corroborate the evidence. Current snapshot and consistency tooling supports this work with audit records, while those operational acceptance criteria remain open.
 
+The [held-out evaluation procedure](behavior-evaluation.md#preparing-the-held-out-evaluation) now supplies a revision-safe bulk label import and an explicit sample-readiness report. A Phase 3 sign-off needs the actual held-out report and independently corroborated review evidence.
+
 ## Release 4 Controlled response and operational release
 
 1. Add action-specific notification, rate-limit and containment playbooks only after identity, authorization, allowed targets, TTL, approval and rollback are tested for each action.
