@@ -129,6 +129,8 @@ Release 2C.1 เพิ่ม [FIRST EPSS](docs/epss-intelligence.md) ใน Inte
 
 เฟส3A: [ชุดข้อมูลและ CPU replay สำหรับวัดผล](docs/behavior-evaluation.md) เพิ่ม collector continuity, immutable HTTP window snapshots, label history และเปรียบเทียบ median/MAD กับ EWMA แบบแยกข้อมูลตามเวลา ใช้ผ่านแท็บ **Evaluation** ที่ `/AIEdgeGuard/dashboard#evaluation` หรือ API/CLI ได้แล้ว; ยังไม่มีผล benchmark จริงจนผู้ดูแลจัดประเภทข้อมูลครบ
 
+เฟส3B: [Candidate case graphs](docs/candidate-case-graphs.md) เพิ่มกราฟหลักฐานใน **Traffic/Incidents → Inspect** พร้อมประเภท/เหตุผลของเส้นเชื่อม เวลาเกิดเหตุเทียบเวลารับเข้า และ snapshot ที่เก็บสมาชิกกับ asset revision ไว้ตรวจย้อนหลัง ความสัมพันธ์ยังไม่ใช่การยืนยัน causal attack chain
+
 1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
 2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)
 3. วัด false positives และประสิทธิภาพจาก traffic จริงก่อนเปิด auto-execution

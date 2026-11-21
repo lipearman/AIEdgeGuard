@@ -11,10 +11,12 @@ Schema (Phase 4): incidents holds one row per CrowdSec alert.
 
 import json
 import sys
+from datetime import UTC, datetime
 
 import psycopg
 
 from app.config import settings
+from app.event_time import extract as extract_event_time
 
 SCHEMA = """
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -32,6 +34,11 @@ CREATE TABLE IF NOT EXISTS incidents (
     analyzed_at timestamptz
 );
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS campaign_id integer;
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS event_observed_at timestamptz;
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS event_time_field text NOT NULL DEFAULT '';
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS event_time_state text NOT NULL DEFAULT 'not_indexed';
+CREATE INDEX IF NOT EXISTS incidents_effective_time ON incidents(COALESCE(event_observed_at,created_at));
+CREATE INDEX IF NOT EXISTS incidents_time_pending ON incidents(id) WHERE event_time_state='not_indexed';
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS queued_at timestamptz;
 CREATE TABLE IF NOT EXISTS campaigns (
     id            serial PRIMARY KEY,
@@ -166,11 +173,14 @@ async def _connect() -> psycopg.AsyncConnection:
 async def insert_incident(alert: dict) -> int | None:
     """Insert one normalized alert. Returns row id if NEW, None if duplicate."""
     alert_id = alert["alert_id"]
+    observed, time_field, time_state = extract_event_time(
+        alert["source"], alert, datetime.now(UTC)
+    )
     async with await _connect() as conn:
         cur = await conn.execute(
             """
-            INSERT INTO incidents (alert_id, source, kind, severity, reason, source_ip, event)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO incidents (alert_id, source, kind, severity, reason, source_ip, event,event_observed_at,event_time_field,event_time_state)
+            VALUES (%s, %s, %s, %s, %s, %s, %s,%s,%s,%s)
             ON CONFLICT (alert_id) DO NOTHING
             RETURNING id
             """,
@@ -182,6 +192,9 @@ async def insert_incident(alert: dict) -> int | None:
                 alert["reason"],
                 alert["source_ip"],
                 json.dumps(alert, ensure_ascii=False),
+                observed,
+                time_field,
+                time_state,
             ),
         )
         row = await cur.fetchone()

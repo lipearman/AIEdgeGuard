@@ -937,8 +937,10 @@ async function openDetail(index) {
           .filter(([, value]) => value === null || typeof value !== "object")
           .map(([key, value]) => [key, value]),
       );
-    if (["requests", "incidents"].includes(recordKind))
+    if (["requests", "incidents"].includes(recordKind)) {
       window.EdgeIntelligence.attach(content, recordKind, row);
+      window.EdgeCases.attach(content, recordKind, row);
+    }
     const details = node("details"),
       summary = node("summary", "", "Raw JSON evidence");
     details.append(

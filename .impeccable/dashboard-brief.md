@@ -39,3 +39,17 @@ FIRST VIEWPORT: existing navigation/summary and Evaluation tab, collector status
 FORM: local code-led extension, no new visual world or concept seed. Minimum36px controls,44px on mobile; keyboard focus; paged observations/datasets/labels/reports; pending write UUID recovery across reload. Evidence evaluation-{1440,768,390}.png, evaluation-empty-390.png, evaluation-label-{1440,390}.png and verify_evaluation.py. Synthetic captures are not production benchmarks.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+## Candidate case graph extension contract
+
+THESIS: extend request/incident Inspect with a bounded candidate evidence graph, showing why records connect without implying a causal attack chain.
+
+OWN-WORLD: inherit midnight drawer surfaces, cyan actions, Barlow headings, IBM Plex Thai body, hairline separators and native forms/disclosures. SVG is a data diagram, not decorative illustration.
+
+STORY: declare investigation purpose and save a case; inspect fixed membership, one-hop typed links and source hashes; select a node for observed versus ingested time, missing/future-clock state and unverified late-arrival delay. Read old cases or export their exact JSON.
+
+FIRST VIEWPORT: section inside the existing evidence drawer, after Investigation; scope, collapsed create form, status and paginated saved cases. Loaded graph has its pinned identity, event window and explicit confidence limits above a paged fan diagram and selectable text equivalent. Four linked nodes/page on mobile, eight desktop; anchor remains present.
+
+FORM: code-led local extension, no new world or concept seed. Low-confidence associations use dashed lines; stored references are distinct from attack probability. Saved declarations remain pinned; pending UUID/input survive closing/reopening/reload. Required viewport-only drawer captures cases-{1440,768,390}.png and case-node-{1440,390}.png; verify_cases.py uses intercepted synthetic fixtures, never production attack claims.
+
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
