@@ -33,7 +33,7 @@ def replay(dataset, labels):
     return json.loads(result.stdout)
 
 
-def run():
+def run(drift=False):
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, channel="chrome")
@@ -58,8 +58,12 @@ def run():
                     "index": i,
                     "start": (start + timedelta(minutes=5 * i)).isoformat(),
                     "end": (start + timedelta(minutes=5 * (i + 1))).isoformat(),
-                    "requests": 180 if i >= 120 and i % 5 == 0 else 10,
-                    "errors": 0,
+                    "requests": 1200
+                    if drift and i >= 120
+                    else 180
+                    if i >= 120 and i % 5 == 0
+                    else 10,
+                    "errors": 600 if drift and i >= 120 else 0,
                     "eligible": i != 149,
                     "collector_covered_seconds": 300 if i != 149 else 285,
                     "membership_sha256": "fixture-only",
@@ -110,6 +114,9 @@ def run():
                 "label_ids": [],
                 "run_ids": [],
                 "fail_status": False,
+                "hold_run": None,
+                "held_run": None,
+                "fail_run": None,
             }
 
             def handler(
@@ -274,6 +281,15 @@ def run():
                     else:
                         data = state["datasets"][did]
                 elif ev.startswith("/runs/"):
+                    if state["hold_run"] == ev.split("/")[-1]:
+                        state["held_run"] = route
+                        return
+                    if state["fail_run"] == ev.split("/")[-1]:
+                        state["fail_run"] = None
+                        route.fulfill(
+                            status=503, json={"detail": "Fixture replay load failed"}
+                        )
+                        return
                     data = next(
                         x for x in state["reports"] if x["id"] == ev.split("/")[-1]
                     )
@@ -413,11 +429,100 @@ def run():
                 "document.querySelector('#evalReport').textContent.includes('Not ready')"
             )
             assert "Recall" not in page.locator("#evalReport").inner_text()
+            if drift:
+                assert (
+                    "Training baseline not ready"
+                    in page.locator(".drift-section").inner_text()
+                )
             # Restore the original pinned report for visual evidence; its labels cannot mutate.
             page.locator("#evalRuns").select_option(state["run_ids"][0])
             page.wait_for_function(
                 "document.querySelector('#evalReport').textContent.includes('Held-out')"
             )
+            if drift:
+                pinned = next(
+                    x for x in state["reports"] if x["id"] == state["run_ids"][0]
+                )
+                other = state["reports"][0]
+                state["hold_run"] = other["id"]
+                page.locator("#evalRuns").select_option(other["id"])
+                page.wait_for_function("document.querySelector('#evalRuns').disabled")
+                assert page.locator("#evalRuns").input_value() == pinned["id"]
+                page.wait_for_timeout(50)
+                assert state["held_run"] is not None
+                state["hold_run"] = None
+                state["held_run"].fulfill(json=other)
+                page.wait_for_function(
+                    "document.querySelector('#evalReport').textContent.includes('Not ready')"
+                )
+                assert page.locator("#evalRuns").input_value() == other["id"]
+                state["fail_run"] = pinned["id"]
+                page.locator("#evalRuns").select_option(pinned["id"])
+                page.wait_for_function(
+                    "document.querySelector('#evalRunStatus').textContent.includes('load failed')"
+                )
+                assert page.locator("#evalRuns").input_value() == other["id"]
+                page.locator("#evalRuns").select_option(pinned["id"])
+                page.wait_for_function(
+                    "document.querySelector('.drift-section')?.textContent.includes('Candidate input-distribution change')"
+                )
+                page.locator(".drift-period details").evaluate_all(
+                    "items=>items.forEach(d=>d.open=true)"
+                )
+                page.evaluate("document.fonts.ready")
+                if width in (1440, 768, 390):
+                    page.locator(".drift-section").screenshot(
+                        path=str(OUT / f"drift-{width}.png")
+                    )
+                # A legacy report remains legacy; no invented zero drift or backfill.
+                legacy = copy.deepcopy(state["reports"][0])
+                legacy["id"] = str(uuid4())
+                legacy["report"].pop("input_drift", None)
+                legacy["report"]["algorithm_version"] = "http-volume-replay-v1-20261121"
+                legacy["report"]["implementation_sha256"] = "0" * 64
+                state["reports"].append(legacy)
+                page.locator("#evalDatasets button").first.click()
+                page.wait_for_selector(
+                    f'#evalRuns option[value="{legacy["id"]}"]', state="attached"
+                )
+                page.locator("#evalRuns").select_option(legacy["id"])
+                page.wait_for_function(
+                    "document.querySelector('.drift-section')?.textContent.includes('Not recorded for this saved replay')"
+                )
+                assert page.locator(".drift-period").count() == 0
+                if width == 390:
+                    page.locator(".drift-section").screenshot(
+                        path=str(OUT / "drift-legacy-390.png")
+                    )
+                # A separate gapped fixture dataset yields no clean distribution result.
+                gap = copy.deepcopy(dataset)
+                gap_id = str(uuid4())
+                gap["id"] = gap_id
+                gap["specification"]["host"] = "gap.fixture.test"
+                gap["content_hash"] = "fixture-gap-sha"
+                for window in gap["snapshot"]["windows"][120:130]:
+                    window["eligible"] = False
+                    window["collector_covered_seconds"] = 0
+                state["datasets"][gap_id] = gap
+                state["list"].append(gap)
+                page.evaluate("window.EdgeEvaluation.refresh()")
+                page.locator("#evalDatasets button").filter(
+                    has_text="gap.fixture.test"
+                ).click()
+                page.wait_for_function(
+                    "document.querySelector('#evalSelectionTitle').textContent==='gap.fixture.test'"
+                )
+                page.locator("#evalRun").click()
+                page.wait_for_function(
+                    "document.querySelector('.drift-section')?.textContent.includes('Insufficient eligible coverage')"
+                )
+                assert (
+                    page.locator(".drift-period").first.locator("details").count() == 0
+                )
+                if width == 390:
+                    page.locator(".drift-section").screenshot(
+                        path=str(OUT / "drift-gap-390.png")
+                    )
             state["fail_status"] = True
             page.locator("#refreshButton").click() if page.locator(
                 "#refreshButton"
@@ -436,7 +541,7 @@ def run():
                 "document.documentElement.scrollWidth <= innerWidth"
             ), width
             assert not page.evaluate("window.injected || false")
-            if width in (1440, 768, 390):
+            if width in (1440, 768, 390) and not drift:
                 page.screenshot(
                     path=str(OUT / f"evaluation-{width}.png"), full_page=True
                 )
@@ -446,6 +551,10 @@ def run():
     print(
         "Evaluation UI PASS: 4 widths/3 prefixes; empty/error/recovery, segments/windows paging, snapshot/label/run lost-response UUID recovery across reload, CAS/draft, pinned report/export, insufficient data and XSS"
     )
+    if drift:
+        print(
+            "Drift UI PASS: candidate/error-share, baseline readiness, legacy unavailable and gap handling; actual immutable replay integration at4 widths/3 prefixes"
+        )
 
 
 if __name__ == "__main__":

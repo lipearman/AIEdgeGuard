@@ -40,6 +40,20 @@ FORM: local code-led extension, no new visual world or concept seed. Minimum36px
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
+## Replay input drift extension contract
+
+THESIS: show descriptive input-distribution changes and coverage before detection metrics, without portraying them as confirmed model drift, attacks or permission to retune.
+
+OWN-WORLD: inherit the existing Evaluation Operate world, midnight/cyan surfaces, Barlow headings, Plex Thai copy, flat sections and native disclosures. Amber marks a candidate or insufficient comparison; no green security score, new imagery or token world.
+
+STORY: open a pinned replay, compare eligible later test/calibration windows with its frozen normal-labeled training period, inspect volume/error-share details and label context, distinguish gaps/invalid/legacy states, then inspect pinned rules or export the same report.
+
+FIRST VIEWPORT: Input drift & data coverage sits inside the selected replay before confusion matrices. Test and calibration are side-by-side above900px, stacked below. Coverage and normal/lab/unknown context stay visible; numeric details and fixed-rule provenance use native disclosures. Old runs explicitly say not recorded.
+
+FORM: code-led local extension. Report selector remains pinned to displayed data while loading/failing and mutable controls are disabled during the switch. Required exact component captures drift-{1440,768,390}.png, drift-gap-390.png and drift-legacy-390.png, from real intercepted Evaluation workflow; verify_drift.py drives replay, save/retry and immutable report selection with synthetic fixtures.
+
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
 ## Case consistency and operator review extension contract
 
 THESIS: add a separately computed retained-evidence consistency report and append-only operator annotation; never imply independent source authenticity, verified reviewer identity or causal attack confirmation.

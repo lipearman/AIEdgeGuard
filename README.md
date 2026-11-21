@@ -133,6 +133,8 @@ Release 2C.1 เพิ่ม [FIRST EPSS](docs/epss-intelligence.md) ใน Inte
 
 เฟส3C: [ตรวจความสอดคล้องของหลักฐานและความเห็นผู้ตรวจ](docs/case-evidence-checks.md) เพิ่มผลตรวจแยกจากตัวสร้างกราฟ ระบุข้อมูลเปลี่ยน/ขาด/ขัดแย้ง เก็บ report และ review revision แบบแก้ย้อนหลังไม่ได้ เปิดใน case ที่บันทึกแล้วผ่าน **Evidence consistency & analyst review** โดยยังไม่อ้างว่าชื่อผู้ตรวจหรือแหล่งหลักฐานได้รับการยืนยันอย่างอิสระ
 
+เฟส3D: [Input drift และ coverage](docs/input-drift.md) เพิ่มการเปรียบเทียบปริมาณ request/สัดส่วน error กับ training ที่ตรึงไว้ใน replay report ใหม่ แสดงข้อมูลขาด feature ไม่ครบ และรายงานเก่าตามจริง โดยไม่ยืนยัน model drift หรือเปลี่ยน threshold/โมเดลอัตโนมัติ
+
 1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
 2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)
 3. วัด false positives และประสิทธิภาพจาก traffic จริงก่อนเปิด auto-execution

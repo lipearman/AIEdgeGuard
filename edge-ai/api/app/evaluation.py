@@ -15,10 +15,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app import behavior_drift
 from app.integrations import db
 
 router = APIRouter(prefix="/api/v1/evaluation", tags=["Offline evaluation"])
-VERSION = "http-volume-replay-v1-20261121"
+VERSION = "http-volume-replay-v2-20261122"
 IMPLEMENTATION_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 SCOPE = (
     "Operator-labeled HTTP host/router volume windows only; not general attack detection. "
@@ -313,6 +314,7 @@ def replay(dataset, labels):
     train = windows[:train_end]
     report = {
         "algorithm_version": VERSION,
+        "input_drift": behavior_drift.summarize(windows, truth, train_end, test_start),
         "implementation_sha256": IMPLEMENTATION_SHA256,
         "dataset_id": str(dataset["id"]),
         "dataset_sha256": dataset["content_hash"],

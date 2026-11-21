@@ -455,10 +455,23 @@
       option.value = item.id;
       $("Runs").append(option);
     });
+    restoreRunSelection();
     pager("Run", runPage, data.total, 10);
+  }
+  function restoreRunSelection() {
+    if (
+      report &&
+      !Array.from($("Runs").options).some((o) => o.value === report.id)
+    ) {
+      const option = n("option", "Pinned current replay · " + report.id);
+      option.value = report.id;
+      $("Runs").append(option);
+    }
+    $("Runs").value = report?.id || "";
   }
   function renderReport(data) {
     report = data;
+    restoreRunSelection();
     const r = data.report,
       target = $("Report");
     target.replaceChildren();
@@ -479,6 +492,7 @@
       ),
     );
     target.append(link("Pinned report · " + data.id, "/runs/" + data.id));
+    window.EdgeDrift.render(target, r.input_drift);
     if (r.metrics) {
       target.append(
         n(
@@ -778,15 +792,26 @@
     }
   };
   $("Runs").onchange = async () => {
-    if (!$("Runs").value) return;
+    const id = $("Runs").value;
+    restoreRunSelection();
+    if (!id || busy) return;
     const ticket = ++reportTicket,
       identity = dataset.id;
+    lock(true);
     try {
-      const saved = await api("/runs/" + $("Runs").value);
-      if (ticket === reportTicket && dataset.id === identity)
+      const saved = await api("/runs/" + id);
+      if (ticket === reportTicket && dataset.id === identity) {
         renderReport(saved);
+        status(
+          "RunStatus",
+          "Loaded pinned replay · selected report and drift evidence now match",
+        );
+      }
     } catch (error) {
+      restoreRunSelection();
       status("RunStatus", error.message + " · reselect report to retry", true);
+    } finally {
+      if (ticket === reportTicket) lock(false);
     }
   };
   $("ExportDataset").onclick = () =>
