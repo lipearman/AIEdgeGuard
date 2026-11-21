@@ -185,7 +185,7 @@ def run():
             page.goto("http://demo.test" + prefix + "/dashboard#intelligence")
             page.wait_for_selector(".intel-entry")
             assert state["gets"] == state["posts"] == 0
-            page.locator(".intel-entry > button").click()
+            page.locator('button[aria-label^="View EPSS for"]').click()
             page.wait_for_function(
                 "document.querySelector('#epssStatus').textContent.includes('never_fetched')"
             )

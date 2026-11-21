@@ -222,12 +222,33 @@ async def cache_write(key, value):
         return False
 
 
-async def ollama_tokens(context, model, language):
-    language_prompt = (
+def language_instruction(language):
+    return (
         "Write the report in Thai, retaining technical identifiers in English."
         if language == "th"
         else "Write the report in English."
     )
+
+
+def provenance(context, model, language, metadata=None):
+    system = SYSTEM + language_instruction(language)
+    user = "UNTRUSTED ALERT EVIDENCE:\n" + json.dumps(
+        context["payload"], ensure_ascii=False
+    )
+    return {
+        "prompt_version": VERSION,
+        "system_sha256": hashlib.sha256(system.encode()).hexdigest(),
+        "input_sha256": hashlib.sha256(user.encode()).hexdigest(),
+        "requested_model": model,
+        "runtime_digest": None,
+        **(metadata or {}),
+        "model_scope": "Requested Ollama tag; immutable runtime digest not provided",
+        "retention": "Redis report cache only; 10 minutes, not an incident evidence rewrite",
+    }
+
+
+async def ollama_tokens(context, model, language):
+    language_prompt = language_instruction(language)
     body = {
         "model": model,
         "stream": True,
@@ -267,9 +288,21 @@ async def ollama_tokens(context, model, language):
 
 
 async def report_stream(context, model, language, key, cached):
+    metadata = None if cached else await ollama_client.model_metadata(model)
+    report_provenance = (
+        cached.get("provenance")
+        if cached
+        else provenance(context, model, language, metadata)
+    )
     yield sse(
         "meta",
-        {"model": model, "language": language, "cached": bool(cached), **context},
+        {
+            "model": model,
+            "language": language,
+            "cached": bool(cached),
+            "provenance": report_provenance,
+            **context,
+        },
     )
     if cached:
         yield sse("token", {"text": cached["text"]})
@@ -305,7 +338,14 @@ async def report_stream(context, model, language, key, cached):
             if not report.strip():
                 raise ValueError("Ollama returned an empty report")
             generated = datetime.now(UTC).isoformat()
-            saved = await cache_write(key, {"text": report, "generated_at": generated})
+            saved = await cache_write(
+                key,
+                {
+                    "text": report,
+                    "generated_at": generated,
+                    "provenance": report_provenance,
+                },
+            )
             yield sse(
                 "done",
                 {"cached": False, "cache_saved": saved, "generated_at": generated},

@@ -72,6 +72,20 @@ class ContextTests(unittest.TestCase):
 
 
 class StreamTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        metadata = patch.object(
+            triage.ollama_client,
+            "model_metadata",
+            AsyncMock(
+                return_value={
+                    "observed_model_digest": "fixture-digest",
+                    "digest_scope": "Fixture metadata only",
+                }
+            ),
+        )
+        metadata.start()
+        self.addCleanup(metadata.stop)
+
     async def test_success_streams_tokens_and_caches_only_complete_report(self):
         async def tokens(*_):
             yield "สรุป "
@@ -168,6 +182,20 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ApiTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        metadata = patch.object(
+            triage.ollama_client,
+            "model_metadata",
+            AsyncMock(
+                return_value={
+                    "observed_model_digest": "fixture-digest",
+                    "digest_scope": "Fixture metadata only",
+                }
+            ),
+        )
+        metadata.start()
+        self.addCleanup(metadata.stop)
+
     async def test_validation_bypass_and_installed_model_only(self):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=main.app), base_url="http://test"

@@ -31,6 +31,10 @@ const layers = {
   manual: "MANUAL",
 };
 const tabs = {
+  sources: [
+    "Source library & applicability",
+    "NVD · MITRE ATT&CK · IP reputation · declared product checks",
+  ],
   assets: [
     "Asset inventory & identity",
     "Operator-attested hosts, applications and services",
@@ -296,11 +300,22 @@ function configureFilters() {
     "triage",
     "intelligence",
     "assets",
+    "sources",
   ].includes(kind);
-  $("pager").hidden = ["policy", "triage", "intelligence", "assets"].includes(
-    kind,
-  );
-  $("dataView").hidden = ["triage", "intelligence", "assets"].includes(kind);
+  $("pager").hidden = [
+    "policy",
+    "triage",
+    "intelligence",
+    "assets",
+    "sources",
+  ].includes(kind);
+  $("dataView").hidden = [
+    "triage",
+    "intelligence",
+    "assets",
+    "sources",
+  ].includes(kind);
+  $("knowledgeWorkspace").hidden = kind !== "sources";
   $("assetsWorkspace").hidden = kind !== "assets";
   $("intelligenceWorkspace").hidden = kind !== "intelligence";
   $("triageWorkspace").hidden = kind !== "triage";
@@ -308,6 +323,7 @@ function configureFilters() {
     "triage",
     "intelligence",
     "assets",
+    "sources",
   ].includes(kind);
   $("dataView").setAttribute("aria-labelledby", "tab-" + kind);
 }
@@ -323,6 +339,7 @@ function switchTab(next) {
     button.setAttribute("aria-selected", String(active));
     button.tabIndex = active ? 0 : -1;
   });
+  ensureActiveTabVisible();
   $("recordsTitle").textContent = tabs[kind][0];
   $("recordDescription").textContent = tabs[kind][1];
   configureFilters();
@@ -331,6 +348,17 @@ function switchTab(next) {
   else window.EdgeTriage.leave();
   loadPage();
 }
+function ensureActiveTabVisible() {
+  const button = document.querySelector('[data-kind="' + kind + '"]');
+  const strip = $("recordTabs");
+  if (!button || !strip) return;
+  const item = button.getBoundingClientRect(),
+    bounds = strip.getBoundingClientRect();
+  if (item.left < bounds.left) strip.scrollLeft += item.left - bounds.left - 10;
+  else if (item.right > bounds.right)
+    strip.scrollLeft += item.right - bounds.right + 10;
+}
+window.addEventListener("resize", ensureActiveTabVisible);
 function filtersChanged() {
   state.q = $("recordSearch").value.trim();
   state.source = $("sourceFilter").value;
@@ -350,6 +378,13 @@ async function loadPage() {
   $("dataView").setAttribute("aria-busy", "true");
   $("refreshState").textContent = "กำลังโหลดข้อมูล…";
   try {
+    if (kind === "sources") {
+      await window.EdgeKnowledge.refresh();
+      if (ticket === sequence)
+        $("refreshState").textContent =
+          "Source-qualified references · operator-declared products";
+      return;
+    }
     if (kind === "assets") {
       await window.EdgeAssets.refresh();
       if (ticket === sequence)
@@ -823,6 +858,7 @@ async function openDetail(index) {
           node("p", "", row.analysis.reasoning || "No reasoning recorded"),
         );
         content.append(analysis);
+        window.EdgeKnowledge.attachProvenance(content, row.analysis);
       }
       window.EdgeReviews.attach(content, row);
       content.append(node("h3", "", "Captured payload"));

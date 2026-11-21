@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     request_max_rows: int = 100000
     request_retention_days: int = 7
 
-    intelligence_enabled: bool = True  # fixed public CISA KEV feed, daily; read-only enrichment
+    intelligence_enabled: bool = True  # public catalog sync: KEV/DROP daily, ATT&CK weekly; NVD/EPSS on demand
 
 
 settings = Settings()

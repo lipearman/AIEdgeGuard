@@ -12,6 +12,7 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.config import settings
+from app.cpe import cpe_parts
 from app.integrations import db
 
 router = APIRouter(prefix="/api/v1/assets", tags=["Asset inventory"])
@@ -81,6 +82,17 @@ class Software(BaseModel):
     vendor: str = Field(default="", max_length=120)
     product: str = Field(min_length=1, max_length=120)
     version: str = Field(default="", max_length=100)
+    cpe23: str = Field(default="", max_length=1024)
+    version_scheme: Literal["unknown", "numeric_dot"] = "unknown"
+
+    @field_validator("cpe23")
+    @classmethod
+    def cpe_value(cls, value):
+        if value:
+            parts = cpe_parts(value)
+            if any(p in ("*", "-") or any(c in p for c in "?*\\") for p in parts[3:5]):
+                raise ValueError("Map a specific CPE vendor/product, not a wildcard")
+        return value
 
 
 class RouteBinding(BaseModel):

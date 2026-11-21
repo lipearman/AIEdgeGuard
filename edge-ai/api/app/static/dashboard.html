@@ -9,15 +9,17 @@
     <link rel="stylesheet" href="static/mission.css" />
     <link rel="stylesheet" href="static/dashboard.css?v=20261112-background" />
     <link rel="stylesheet" href="static/triage.css?v=20261113-final" />
-    <script src="static/triage.js?v=20261113-final" defer></script>
+    <script src="static/triage.js?v=20261121-provenance" defer></script>
     <link rel="stylesheet" href="static/intelligence.css?v=20261121-epss" />
+    <script src="static/knowledge.js?v=20261121" defer></script>
+    <link rel="stylesheet" href="static/knowledge.css?v=20261121" />
     <script src="static/epss.js?v=20261121" defer></script>
-    <script src="static/intelligence.js?v=20261121-epss" defer></script>
+    <script src="static/intelligence.js?v=20261121-sources" defer></script>
     <link rel="stylesheet" href="static/reviews.css?v=20261121" />
     <link rel="stylesheet" href="static/assets.css?v=20261121" />
-    <script src="static/assets.js?v=20261121" defer></script>
+    <script src="static/assets.js?v=20261121-cpe" defer></script>
     <script src="static/reviews.js?v=20261121-v1" defer></script>
-    <script src="static/dashboard.js?v=20261121-assets" defer></script>
+    <script src="static/dashboard.js?v=20261121-sources" defer></script>
   </head>
   <body class="dashboard-page">
     <svg
@@ -195,6 +197,14 @@
           >
             Intelligence</button
           ><button
+            id="tab-sources"
+            role="tab"
+            aria-controls="knowledgeWorkspace"
+            aria-selected="false"
+            data-kind="sources"
+          >
+            Sources</button
+          ><button
             id="tab-assets"
             role="tab"
             aria-controls="assetsWorkspace"
@@ -360,6 +370,12 @@
 เลือก alert เพื่อดู context ที่ตัดทอนและปกปิด secret patterns แล้ว</pre
                 >
               </details>
+              <details id="triageProvenance">
+                <summary>Prompt / model provenance</summary>
+                <pre id="triageProvenanceBody" class="evidence-code">
+Not generated</pre
+                >
+              </details>
               <div
                 id="triageReport"
                 class="triage-report-text"
@@ -375,6 +391,13 @@
             </section>
           </div>
         </section>
+        <section
+          id="knowledgeWorkspace"
+          class="knowledge-workspace"
+          role="tabpanel"
+          aria-labelledby="tab-sources"
+          hidden
+        ></section>
         <section
           id="assetsWorkspace"
           class="assets-workspace"

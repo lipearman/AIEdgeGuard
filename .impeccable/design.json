@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-21T09:22:06.660309+00:00",
+  "generatedAt": "2026-11-21T10:05:26.076609+00:00",
   "title": "Design System: LACD Defense Console",
   "extensions": {
     "scope": "Mission Control and Dashboard / Defense Workspace; preserve their distinct overview and record-oriented layouts.",
@@ -55,7 +55,15 @@
       "edge-ai/api/app/static/epss.js",
       ".impeccable/review/epss-1440.png",
       ".impeccable/review/epss-768.png",
-      ".impeccable/review/epss-390.png"
+      ".impeccable/review/epss-390.png",
+      "docs/phase2-source-library.md",
+      "edge-ai/api/app/static/knowledge.css",
+      "edge-ai/api/app/static/knowledge.js",
+      ".impeccable/review/sources-1440.png",
+      ".impeccable/review/sources-768.png",
+      ".impeccable/review/sources-390.png",
+      ".impeccable/review/source-provenance-1440.png",
+      ".impeccable/review/source-provenance-390.png"
     ],
     "colorMeta": {
       "bg": {
@@ -428,6 +436,10 @@
       {
         "name": "assets-fields-single-column-max",
         "value": "520px"
+      },
+      {
+        "name": "sources-stacked-max",
+        "value": "1000px"
       }
     ],
     "dashboardBackground": {
@@ -497,6 +509,17 @@
       "freshness": "24h cache; 30s outbound lookup budget; on-demand, no EPSS daily sync. Show lookup state, last success/attempt, score date/fetched time and current/stale score; retained score may differ from latest failed/not-scored lookup.",
       "provenance": "Immutable stored-score snapshot link and FIRST source attribution; FIRST API version is not EPSS model version.",
       "boundary": "Probability differs from percentile rank; missing/not-scored is not zero likelihood. No severity, asset-applicability, exploitation-proof or enforcement inference."
+    },
+    "sourceLibrary": {
+      "scope": "Dashboard Sources tab; Asset saved-revision handoff; Incident and Triage provenance. Existing palette/fonts/art remain authoritative.",
+      "layout": "Two equal minmax(0,1fr) columns/36px gap/24px workspace padding; stack <=1000px. <=520px padding 18px 14px and button minimum height 44px, otherwise 36px. Forms 14px gap; local 2px cyan focus/3px offset.",
+      "type": "25px/1.3 section heading; 22px/1.3 subheading; 13px/1.7 prose; 13px native fields/10px 12px padding/4px radius; wrap long evidence/provenance.",
+      "sources": "Cached NVD read versus gated Fetch; retained MITRE search/paging and DROP local-only range lookup. Show source attribution/copyright/license, check versus publisher dates, freshness/error and immutable snapshot links.",
+      "assessments": "Immutable assessment pins asset revision/NVD snapshot and self-reported author/time/saved rationale. Read-only saved reason stays separate from editable retained draft; paginated history, revision-conflict reload and idempotent retry states. Unsupported CPE/version/environment criteria require review; candidate/no-match is not affected/safe certification.",
+      "assetHandoff": "Optional CPE2.3 and numeric_dot/unknown scheme in declared software; jump from saved Asset revision only.",
+      "provenance": "Incident native execution-metadata disclosure plus source snapshot links; historical missing metadata explicit. Observed tag digest is not runtime attestation. Triage order: cleaned payload, provenance disclosure, plain report; metadata-backed values only.",
+      "navigation": "Selected Dashboard tab remains horizontally visible on narrow screens.",
+      "boundary": "No authenticated actor, verified inventory, complete CPE applicability, attack attribution or enforcement claim."
     }
   },
   "components": [

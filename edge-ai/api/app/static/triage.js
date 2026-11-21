@@ -170,6 +170,7 @@
     payloadAbort?.abort();
     selected = row;
     $("triageModelInfo").textContent = "Not generated · local Ollama";
+    $("triageProvenanceBody").textContent = "Not generated";
     document
       .querySelectorAll(".triage-alert")
       .forEach((button) =>
@@ -272,6 +273,11 @@
         const data = JSON.parse(raw);
         if (event === "meta") {
           showPayload(data);
+          $("triageProvenanceBody").textContent = JSON.stringify(
+            data.provenance || { state: "Not recorded for this cached report" },
+            null,
+            2,
+          );
           $("triageModelInfo").textContent =
             `${data.model} · ${data.language.toUpperCase()} · ${data.cached ? "Redis cached" : "Live generation"}`;
           status(
@@ -345,6 +351,8 @@
     $(id).addEventListener("change", () => {
       if (selected) {
         $("triageModelInfo").textContent = "Not generated · settings changed";
+        $("triageProvenanceBody").textContent =
+          "Not generated · settings changed";
         $("triageReport").textContent =
           "Settings changed · กด Stream analysis เพื่อสร้างรายงานใหม่";
         status("Ready · settings changed");

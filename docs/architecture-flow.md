@@ -2,7 +2,7 @@
 
 Current source-aligned diagram, 2026-11-13:
 
-The 2026-11-21 [V2 foundation](v2-foundation.md) adds KEV catalog/enrichment, CPU traffic baseline and candidate investigation timeline. Release 2A adds revision-bound reviewed-TP-only memory; Release 2B adds [operator-attested asset mappings](asset-inventory.md) from HTTP routes to parent-host candidate IDS/EDR evidence. These current mappings are not historical verified identity. [Release 2C.1](epss-intelligence.md) adds separate on-demand FIRST EPSS scores with immutable provenance and gated fetch. Those additions are documented separately; the image below remains the dated 2026-11-13 architecture reference.
+The 2026-11-21 [V2 foundation](v2-foundation.md) adds KEV catalog/enrichment, CPU traffic baseline and candidate investigation timeline. Release 2A adds revision-bound reviewed-TP-only memory; Release 2B adds [operator-attested asset mappings](asset-inventory.md) from HTTP routes to parent-host candidate IDS/EDR evidence. These current mappings are not historical verified identity. [Release 2C.1](epss-intelligence.md) adds separate on-demand FIRST EPSS scores with immutable provenance and gated fetch. [Phase2 completion](phase2-source-library.md) adds retained NVD/ATT&CK/DROP snapshots, revision-bound declared-product checks and prompt/model/source provenance. Those additions are documented separately; the image below remains the dated 2026-11-13 architecture reference.
 
 ![Current LACD architecture](assets/examples/architecture-current.png)
 

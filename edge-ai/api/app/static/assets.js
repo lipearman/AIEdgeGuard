@@ -29,11 +29,11 @@
           </div></fieldset>
           <fieldset id="assetEndpointFields"><legend>Host bindings</legend><div class="asset-observed"><label>Observed Wazuh endpoint<select id="assetObserved"><option value="">Select evidence to prefill…</option></select></label><button id="assetObservedRefresh" type="button" class="quiet-button">Refresh observed</button></div><p id="assetObservedStatus" class="intel-scope" role="status"></p><div class="asset-fields"><label>Wazuh agent IDs · comma separated<input id="assetAgents" maxlength="200" placeholder="001, 002" /></label><label>Endpoint IPs · comma separated<input id="assetIps" maxlength="1000" placeholder="Endpoint addresses only" /></label></div><p class="intel-scope">Agent 000 คือ manager ใช้ผูกไม่ได้ · IP ที่ซ้ำในทะเบียนไม่ใช้เป็น unique identity</p></fieldset>
           <fieldset id="assetRouteFields" hidden><legend>Application / service bindings</legend><label>One route per line · host | router | path prefix<textarea id="assetRoutes" rows="3" maxlength="14000" placeholder="app.example.com | app@docker | /app"></textarea></label><p class="intel-scope">ตรงตาม host และ router ที่บันทึกไว้ ใช้ path prefix ที่เฉพาะที่สุด: /app จับ /app และ /app/… แต่ไม่จับ /application · ไม่ถอดรหัส URL เพื่อผูกตัวตน</p></fieldset>
-          <fieldset><legend>Software declared by operator</legend><label>One product per line · vendor | product | version<textarea id="assetSoftware" rows="3" maxlength="7000" placeholder="Vendor | Product | Version"></textarea></label><p class="intel-scope">ชื่อและเวอร์ชันที่กรอกยังไม่ได้พิสูจน์ว่า CVE ใช้ได้กับเครื่องนี้</p></fieldset>
+          <fieldset><legend>Software declared by operator</legend><label>One product per line · vendor | product | version | CPE 2.3 (optional) | version scheme<textarea id="assetSoftware" rows="3" maxlength="28000" placeholder="Vendor | Product | 1.2.3 | cpe:2.3:a:vendor:product:*:*:*:*:*:*:*:* | numeric_dot"></textarea></label><p class="intel-scope">CPE ต้องตรงกับผลิตภัณฑ์จริง · version scheme ใช้ unknown หรือ numeric_dot (ระบุเองสำหรับเลขคั่นจุด) · ข้อมูลนี้ยังไม่ยืนยันช่องโหว่</p></fieldset>
           <fieldset><legend>Revision record</legend><label>Declared by · self-reported label<input id="assetDeclaredBy" required minlength="2" maxlength="80" /></label><label>Reason / evidence for this change<textarea id="assetRationale" required minlength="8" maxlength="2000" rows="3"></textarea></label></fieldset>
           <button id="assetSave" class="workspace-button">Save new revision</button>
         </form>
-        <details id="assetHistory"><summary>Revision history</summary><div id="assetHistoryItems"></div><div class="intel-pager"><button id="assetHistoryPrevious" class="quiet-button">Previous revisions</button><span id="assetHistoryPage">—</span><button id="assetHistoryNext" class="quiet-button">Next revisions</button></div></details>
+        <button id="assetAssess" class="quiet-button" type="button" hidden>Check CVE applicability</button><details id="assetHistory"><summary>Revision history</summary><div id="assetHistoryItems"></div><div class="intel-pager"><button id="assetHistoryPrevious" class="quiet-button">Previous revisions</button><span id="assetHistoryPage">—</span><button id="assetHistoryNext" class="quiet-button">Next revisions</button></div></details>
       </section>
     </div>`;
   let page = 1,
@@ -227,6 +227,7 @@
     $("assetSave").disabled = false;
     $("assetReload").hidden = true;
     $("assetHistory").hidden = true;
+    $("assetAssess").hidden = true;
     $("assetEditorTitle").textContent = "New asset";
     dirty = false;
     scope();
@@ -246,6 +247,28 @@
       return Object.fromEntries(keys.map((key, index) => [key, values[index]]));
     });
   }
+  function softwareRows(value) {
+    const entries = value
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (entries.length > 20)
+      throw new Error("Use at most 20 software entries.");
+    return entries.map((line, index) => {
+      const v = line.split("|").map((v) => v.trim());
+      if (v.length < 3 || v.length > 5)
+        throw new Error(
+          `Software line ${index + 1}: vendor | product | version | optional CPE | optional scheme`,
+        );
+      return {
+        vendor: v[0],
+        product: v[1],
+        version: v[2],
+        cpe23: v[3] || "",
+        version_scheme: v[4] || "unknown",
+      };
+    });
+  }
   function fill(row) {
     const p = row.payload;
     revision = row.revision;
@@ -263,7 +286,10 @@
         .map((r) => `${r.host} | ${r.router} | ${r.path_prefix}`)
         .join("\n"),
       assetSoftware: p.software
-        .map((r) => `${r.vendor} | ${r.product} | ${r.version}`)
+        .map(
+          (r) =>
+            `${r.vendor} | ${r.product} | ${r.version} | ${r.cpe23 || ""} | ${r.version_scheme || "unknown"}`,
+        )
         .join("\n"),
       assetDeclaredBy: row.declared_by,
       assetRationale: "",
@@ -283,6 +309,7 @@
     $("assetEditorTitle").textContent = `${p.name} · revision ${revision}`;
     $("assetReload").hidden = false;
     $("assetHistory").hidden = false;
+    $("assetAssess").hidden = false;
     dirty = false;
     conflict = false;
     retry = null;
@@ -385,11 +412,7 @@
         routes: host
           ? []
           : lines($("assetRoutes").value, ["host", "router", "path_prefix"]),
-        software: lines($("assetSoftware").value, [
-          "vendor",
-          "product",
-          "version",
-        ]),
+        software: softwareRows($("assetSoftware").value),
         parent_host_id: host ? null : $("assetParent").value || null,
       };
       const body = {
@@ -456,6 +479,16 @@
       `Prefilled from evidence last seen ${new Date(r.last_seen).toLocaleString()}. Inspect mappings before saving; not current online status.`;
   });
   $("assetNew").addEventListener("click", () => {
+    $("assetAssess").addEventListener("click", () => {
+      if (dirty) {
+        status(
+          "Save or reload this draft before checking the stored revision.",
+          true,
+        );
+        return;
+      }
+      window.EdgeKnowledge.selectAsset(id);
+    });
     newAsset();
     focusEditor();
   });
@@ -504,6 +537,16 @@
   });
   $("assetHistory").addEventListener("toggle", () => {
     if ($("assetHistory").open && revision) history();
+  });
+  $("assetAssess").addEventListener("click", () => {
+    if (dirty) {
+      status(
+        "Save or reload this draft before checking the stored revision.",
+        true,
+      );
+      return;
+    }
+    window.EdgeKnowledge.selectAsset(id);
   });
   newAsset();
   window.EdgeAssets = {

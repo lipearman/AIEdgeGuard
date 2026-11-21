@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import assets, epss, intelligence, investigation, reviews, telemetry, traffic, triage, watcher, worker
+from app import applicability, assets, epss, intelligence, investigation, knowledge, reviews, telemetry, traffic, triage, watcher, worker
 from app.agents import attack, decider, decision, defense, detection, learning
 from app.agents.analysis import AnalysisResult, analyze_event
 from app.config import settings
@@ -47,8 +47,11 @@ async def lifespan(app: FastAPI):
     await reviews.init_schema()
     await assets.init_schema()
     await epss.init_schema()
+    await knowledge.init_schema()
+    await applicability.init_schema()
     if settings.intelligence_enabled:
         _background.append(asyncio.create_task(intelligence.run()))
+        _background.append(asyncio.create_task(knowledge.run()))
     if settings.request_history_enabled:
         _background.append(asyncio.create_task(traffic.run()))
     if settings.telemetry_enabled:
@@ -77,6 +80,8 @@ app.include_router(investigation.router)
 app.include_router(reviews.router)
 app.include_router(assets.router)
 app.include_router(epss.router)
+app.include_router(knowledge.router)
+app.include_router(applicability.router)
 
 Collection = Literal[
     "requests", "incidents", "campaigns", "decisions", "approvals", "attacks"
@@ -160,6 +165,16 @@ async def intelligence_sync(_op: None = Depends(require_operation_key)):
 @app.post("/api/v1/intelligence/epss/{cve}")
 async def refresh_epss(cve: str, _op: None = Depends(require_operation_key)):
     return await epss.refresh(cve)
+
+
+@app.post("/api/v1/knowledge/refresh/{provider}/{key}")
+async def refresh_knowledge(provider: knowledge.Provider, key: str, _op: None = Depends(require_operation_key)):
+    return await knowledge.refresh(provider, key)
+
+
+@app.post("/api/v1/applicability")
+async def assess_applicability(body: applicability.AssessmentInput, _op: None = Depends(require_operation_key)):
+    return await applicability.assess(body)
 
 
 @app.post("/api/v1/reviews/{incident_id}")

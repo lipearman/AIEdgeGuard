@@ -196,7 +196,7 @@ def run():
             page.locator("#assetOs").fill("Fixture OS")
             page.locator("#assetOsVersion").fill("1.2")
             page.locator("#assetSoftware").fill(
-                "Fixture vendor | Fixture product | 1.0"
+                "Fixture vendor | Fixture product | 1.0 | cpe:2.3:a:fixture:product:*:*:*:*:*:*:*:* | numeric_dot"
             )
             page.locator("#assetDeclaredBy").fill("Fixture operator")
             page.locator("#assetRationale").fill(
@@ -212,6 +212,8 @@ def run():
             )
             assert state["writes"][0]["request_id"] == state["writes"][1]["request_id"]
             assert state["writes"][0]["payload"]["software"][0]["version"] == "1.0"
+            assert state["writes"][0]["payload"]["software"][0]["version_scheme"] == "numeric_dot"
+            assert state["writes"][0]["payload"]["software"][0]["cpe23"].startswith("cpe:2.3:")
             assert len(state["items"]) == 1
             assert (
                 page.locator("#assetList img").count() == 0

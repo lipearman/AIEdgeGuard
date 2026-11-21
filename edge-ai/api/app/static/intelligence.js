@@ -109,6 +109,13 @@
           window.EdgeEpss.select(row.cve),
         );
         article.append(epssButton);
+        const nvdButton = n("button", "Inspect NVD", "quiet-button");
+        nvdButton.type = "button";
+        nvdButton.setAttribute("aria-label", "Inspect NVD for " + row.cve);
+        nvdButton.addEventListener("click", () =>
+          window.EdgeKnowledge.selectCve(row.cve),
+        );
+        article.append(nvdButton);
         return article;
       });
       $("intelCatalog").replaceChildren(

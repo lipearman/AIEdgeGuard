@@ -13,7 +13,7 @@ Operators monitoring this deployment and reviewing AI-proposed responses. This i
 Existing FastAPI-served HTML/CSS/JavaScript, local Three.js, Docker Desktop and host Ollama. No frontend build system required.
 
 ## Capabilities and Constraints
-Live endpoints expose incidents, decisions, campaigns, gateway request samples, service health, agent modes and embedding counts. Operator-attested Asset Inventory provides explicit host/application/service bindings and revision history. It is not automatic discovery or independently verified identity. No IP geolocation API exists. Maps are illustrative. Never invent compliance certifications, live geolocation, attack totals beyond the sample, or automatic enforcement state.
+Live endpoints expose incidents, decisions, campaigns, gateway request samples, service health, agent modes and embedding counts. Operator-attested Asset Inventory provides explicit host/application/service bindings and revision history. It is not automatic discovery or independently verified identity. Source Library supplies retained NVD, ATT&CK and selected IP reputation data plus conservative declared-product/version assessments with pinned snapshots and analysis provenance. No IP geolocation API exists. Maps are illustrative. Never invent compliance certifications, live geolocation, attack totals beyond the sample, or automatic enforcement state.
 Preserve approval policy and gateway authentication. Lab execution requires a kill switch, target allowlist and explicit user confirmation.
 
 ## Brand Commitments

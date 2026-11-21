@@ -104,6 +104,7 @@ def run():
                             "model": body["model"] or "local:9b",
                             "language": body["language"],
                             "cached": not body["bypass_cache"],
+                            "provenance": {"prompt_version":"triage-fixture", "observed_model_digest":"a"*64,"runtime_digest":None,"digest_scope":"Observed tag mapping, not runtime attestation"},
                             **payload,
                         },
                     )
@@ -123,6 +124,7 @@ def run():
                             "done",
                             {
                                 "cached": not body["bypass_cache"],
+                            "provenance": {"prompt_version":"triage-fixture", "observed_model_digest":"a"*64,"runtime_digest":None,"digest_scope":"Observed tag mapping, not runtime attestation"},
                                 "cache_saved": True,
                                 "generated_at": "2026-11-12T12:00:00Z",
                             },
@@ -169,7 +171,11 @@ def run():
             )
             assert state["posts"][-1]["bypass_cache"] is True
             page.locator("#triageSettingsToggle").click()
+            page.locator("#triageProvenance").evaluate("e=>e.open=true")
+            assert "triage-fixture" in page.locator("#triageProvenanceBody").inner_text()
+            assert page.locator("#triagePayload").evaluate("e=>e.nextElementSibling.id") == "triageProvenance"
             if width in (1440, 768, 390):
+                page.evaluate("document.activeElement.blur();window.scrollTo(0,0)")
                 page.screenshot(path=str(OUT / f"triage-{width}.png"), full_page=True)
             assert page.evaluate("document.documentElement.scrollWidth<=innerWidth"), (
                 width

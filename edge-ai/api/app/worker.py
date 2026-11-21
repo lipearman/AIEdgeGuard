@@ -12,9 +12,9 @@ import sys
 
 import redis.asyncio as aioredis
 
-from app import intelligence
+from app import intelligence, knowledge
 from app.agents import learning
-from app.agents.analysis import analyze_event
+from app.agents.analysis import analyze_event, provenance, provided_citations
 from app.config import settings
 from app.integrations import db
 
@@ -228,6 +228,12 @@ async def _process(r, msg_id, fields) -> None:
             event["evidence"] = {"threat_intelligence": enrichment, **event["evidence"]}
     except Exception as exc:  # noqa: BLE001 — enrichment must not stop ingestion/analysis
         sys.stderr.write(f"[worker] KEV context unavailable: {type(exc).__name__}\n")
+    try:
+        references = await asyncio.wait_for(knowledge.event_context(incident), timeout=5.0)
+        if references:
+            event = {"reference_context": references, **event}
+    except Exception as exc:  # noqa: BLE001 -- optional local enrichment never stops ingestion
+        sys.stderr.write(f"[worker] source references unavailable: {type(exc).__name__}\n")
     memory_sources = []
     # Phase 9: latest reviewed true positives only; references are persisted with this analysis.
     if settings.learning_enabled:
@@ -282,6 +288,11 @@ async def _process(r, msg_id, fields) -> None:
         force = True
         summary = f"[fallback] {summary}"
 
+    execution = "timeout" if analysis.get("attack_type") == "analysis_timeout" else "deterministic_fallback" if force else "model"
+    analysis.setdefault("execution_provenance", provenance(event, execution=execution))
+    if execution != "model":
+        analysis["execution_provenance"] = provenance(event, execution=execution)
+    analysis["source_citations"] = provided_citations(event)
     analysis["reviewed_memory_sources"] = memory_sources
     analysis["memory_policy"] = "latest_true_positive_reviews_only"
     stored = await db.set_analysis(alert_id, analysis, force=force)
