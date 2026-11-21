@@ -10,8 +10,9 @@
     <link rel="stylesheet" href="static/dashboard.css?v=20261112-background" />
     <link rel="stylesheet" href="static/triage.css?v=20261113-final" />
     <script src="static/triage.js?v=20261113-final" defer></script>
-    <link rel="stylesheet" href="static/intelligence.css?v=20261121" />
-    <script src="static/intelligence.js?v=20261121-assets" defer></script>
+    <link rel="stylesheet" href="static/intelligence.css?v=20261121-epss" />
+    <script src="static/epss.js?v=20261121" defer></script>
+    <script src="static/intelligence.js?v=20261121-epss" defer></script>
     <link rel="stylesheet" href="static/reviews.css?v=20261121" />
     <link rel="stylesheet" href="static/assets.css?v=20261121" />
     <script src="static/assets.js?v=20261121" defer></script>
@@ -388,6 +389,46 @@
           aria-labelledby="tab-intelligence"
           hidden
         >
+          <section class="epss-panel" aria-labelledby="epssTitle">
+            <div class="intel-heading">
+              <div>
+                <h3 id="epssTitle">EPSS exploit likelihood</h3>
+                <p>
+                  FIRST · จัดลำดับ CVE ด้วยโอกาสพบ exploitation activity ภายใน
+                  30 วัน
+                </p>
+              </div>
+              <a
+                href="https://www.first.org/epss/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >About FIRST EPSS</a
+              >
+            </div>
+            <form id="epssForm" class="intel-search">
+              <label for="epssCve">CVE ID</label
+              ><input
+                id="epssCve"
+                required
+                maxlength="28"
+                placeholder="CVE-2024-4577"
+                spellcheck="false"
+              /><button class="quiet-button" id="epssView">
+                View cached score</button
+              ><button type="button" class="workspace-button" id="epssFetch">
+                Fetch from FIRST
+              </button>
+            </form>
+            <p class="intel-scope">
+              EPSS เป็นโอกาส ไม่ใช่ความรุนแรงหรือหลักฐานว่าเครื่องนี้มีช่องโหว่
+              · Percentile เป็นอันดับ · Fetch ใช้ Operation Key และ cache 24
+              ชั่วโมง · อัปเดตเมื่อสั่ง ไม่มี EPSS daily sync
+            </p>
+            <p id="epssStatus" class="intel-status" role="status">
+              ระบุ CVE หรือเลือก View EPSS จากรายการ KEV ด้านล่าง
+            </p>
+            <div id="epssResult" class="epss-result"></div>
+          </section>
           <section
             class="review-memory-summary"
             aria-labelledby="reviewMemoryTitle"

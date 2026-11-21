@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-21T06:26:29.617672+00:00",
+  "generatedAt": "2026-11-21T09:22:06.660309+00:00",
   "title": "Design System: LACD Defense Console",
   "extensions": {
     "scope": "Mission Control and Dashboard / Defense Workspace; preserve their distinct overview and record-oriented layouts.",
@@ -51,7 +51,11 @@
       "edge-ai/api/app/static/assets.js",
       ".impeccable/review/assets-1440.png",
       ".impeccable/review/assets-768.png",
-      ".impeccable/review/assets-390.png"
+      ".impeccable/review/assets-390.png",
+      "edge-ai/api/app/static/epss.js",
+      ".impeccable/review/epss-1440.png",
+      ".impeccable/review/epss-768.png",
+      ".impeccable/review/epss-390.png"
     ],
     "colorMeta": {
       "bg": {
@@ -485,6 +489,14 @@
       "identity": "Operator-attested mappings, self-reported author label, existing Operation Key authorization. Observed Wazuh evidence only prefills with last-seen context, not current online or verified facts.",
       "investigation": "Current mapped asset/parent owner/criticality/revision/mapped time; declared metadata disclosure, reasons and warnings; missing/ambiguous mapping is not safety; links remain candidates.",
       "boundaries": "No automatic discovery, authenticated author claim, inferred CVE applicability or new enforcement."
+    },
+    "epss": {
+      "scope": "FIRST EPSS section above reviewed memory and KEV; existing palette, wrapping search/native input and buttons.",
+      "layout": "28px bottom padding/margin and divider; 22px/1.3 condensed result CVE; 13px/1.7 prose; soft-cyan 16px tabular probability/rank; wrap provenance.",
+      "interaction": "One complete CVE; local View cached score versus explicit shared-Operation-Key-gated Fetch from FIRST. KEV View EPSS selects CVE/reads cache. Validate, disable controls/read-only input while busy, retain cancelled CVE and show retry errors.",
+      "freshness": "24h cache; 30s outbound lookup budget; on-demand, no EPSS daily sync. Show lookup state, last success/attempt, score date/fetched time and current/stale score; retained score may differ from latest failed/not-scored lookup.",
+      "provenance": "Immutable stored-score snapshot link and FIRST source attribution; FIRST API version is not EPSS model version.",
+      "boundary": "Probability differs from percentile rank; missing/not-scored is not zero likelihood. No severity, asset-applicability, exploitation-proof or enforcement inference."
     }
   },
   "components": [

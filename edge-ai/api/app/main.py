@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import assets, intelligence, investigation, reviews, telemetry, traffic, triage, watcher, worker
+from app import assets, epss, intelligence, investigation, reviews, telemetry, traffic, triage, watcher, worker
 from app.agents import attack, decider, decision, defense, detection, learning
 from app.agents.analysis import AnalysisResult, analyze_event
 from app.config import settings
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     await intelligence.init_schema()
     await reviews.init_schema()
     await assets.init_schema()
+    await epss.init_schema()
     if settings.intelligence_enabled:
         _background.append(asyncio.create_task(intelligence.run()))
     if settings.request_history_enabled:
@@ -75,6 +76,7 @@ app.include_router(intelligence.router)
 app.include_router(investigation.router)
 app.include_router(reviews.router)
 app.include_router(assets.router)
+app.include_router(epss.router)
 
 Collection = Literal[
     "requests", "incidents", "campaigns", "decisions", "approvals", "attacks"
@@ -153,6 +155,11 @@ async def require_operation_key(
 @app.post("/api/v1/intelligence/sync")
 async def intelligence_sync(_op: None = Depends(require_operation_key)):
     return await intelligence.sync_once()
+
+
+@app.post("/api/v1/intelligence/epss/{cve}")
+async def refresh_epss(cve: str, _op: None = Depends(require_operation_key)):
+    return await epss.refresh(cve)
 
 
 @app.post("/api/v1/reviews/{incident_id}")

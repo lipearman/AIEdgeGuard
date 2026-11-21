@@ -102,6 +102,13 @@
           ),
         );
         article.append(details);
+        const epssButton = n("button", "View EPSS", "quiet-button");
+        epssButton.type = "button";
+        epssButton.setAttribute("aria-label", "View EPSS for " + row.cve);
+        epssButton.addEventListener("click", () =>
+          window.EdgeEpss.select(row.cve),
+        );
+        article.append(epssButton);
         return article;
       });
       $("intelCatalog").replaceChildren(

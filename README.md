@@ -123,6 +123,8 @@ Release 2A เพิ่ม [Analyst Feedback และ Reviewed AI Memory](docs/
 
 Release 2B เพิ่ม [Asset Inventory และ explicit mappings](docs/asset-inventory.md): ทะเบียน host/application/service, owner/criticality, OS/software version, ประวัติ revision และผูก route ไปยัง parent host เพื่อประกอบ candidate timeline เปิดที่ `/AIEdgeGuard/dashboard#assets`
 
+Release 2C.1 เพิ่ม [FIRST EPSS](docs/epss-intelligence.md) ใน Intelligence: ค้นคะแนนราย CVE, แยก probability/percentile, cache 24 ชั่วโมง และอ้างอิง snapshot ที่เก็บไว้ โดย Fetch ใช้ Operation Key
+
 1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
 2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)
 3. วัด false positives และประสิทธิภาพจาก traffic จริงก่อนเปิด auto-execution
