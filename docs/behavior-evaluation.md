@@ -46,6 +46,8 @@ Unknown/gapped test windows are excluded, with counts reported. Recall and false
 
 Method references: [NIST EWMA control charts](https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc324.htm), [scikit-learn time-series evaluation](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html). The implementation is standard-library CPU code; it does not add scikit-learn or send corpus data to an external model.
 
+Each access-log poll reads up to a byte boundary captured on the opened file. A complete line appended beyond that boundary is read on the next poll. Partial lines, invalid records, backlog and file resets appear as distinct collector states. A completed read after a discontinuity is reported as `continuity_break`. Past collector ticks and saved datasets retain their original coverage.
+
 ## Operator usage
 
 ### Preparing the held-out evaluation

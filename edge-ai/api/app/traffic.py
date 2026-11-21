@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -40,25 +41,35 @@ def normalize(raw: dict) -> dict | None:
 
 
 def read_batch(path: Path, state: dict):
-    stat = path.stat()
-    offset = (
-        state.get("offset", 0)
-        if state.get("inode") == stat.st_ino
-        else max(0, stat.st_size - 2_000_000)
-    )
-    if offset > stat.st_size:
-        offset = 0
     rows = []
     malformed = False
-    reset = state.get("inode") != stat.st_ino or state.get("offset", 0) > stat.st_size
+    partial = False
     with path.open("rb") as reader:
+        # Use the opened file and freeze its boundary for this poll. A writer
+        # appending after fstat should not move this poll's finish line.
+        stat = os.fstat(reader.fileno())
+        same_file = state.get("inode") == stat.st_ino
+        saved_offset = state.get("offset", 0)
+        reset = not same_file or saved_offset > stat.st_size
+        offset = (
+            max(0, stat.st_size - 2_000_000)
+            if not same_file
+            else (0 if reset else saved_offset)
+        )
         reader.seek(offset)
-        if not state and offset:
-            reader.readline()  # bootstrap tail may start halfway through a line
         position = reader.tell()
+        if not same_file and offset:
+            # A bootstrap or rotated tail can begin in the middle of a line.
+            skipped = reader.readline(stat.st_size - position)
+            partial = not skipped.endswith(b"\n")
+            if not partial:
+                position = reader.tell()
         for _ in range(500):
-            line = reader.readline()
+            if partial or position >= stat.st_size:
+                break
+            line = reader.readline(stat.st_size - position)
             if not line or not line.endswith(b"\n"):
+                partial = True
                 break
             position = reader.tell()
             try:
@@ -67,13 +78,23 @@ def read_batch(path: Path, state: dict):
                     rows.append(row)
                 else:
                     malformed = True
-            except (ValueError, TypeError):
+            except (ValueError, TypeError, AttributeError):
                 malformed = True
                 log.warning("Malformed access log at offset %s", position)
+    batch_state = "caught_up"
+    if partial:
+        batch_state = "partial_line"
+    elif malformed:
+        batch_state = "invalid_record"
+    elif position != stat.st_size:
+        batch_state = "backlog"
+    elif reset:
+        batch_state = "file_reset"
     return rows, {
         "inode": stat.st_ino,
         "offset": position,
-        "caught_up": position == stat.st_size and not malformed and not reset,
+        "caught_up": batch_state == "caught_up",
+        "batch_state": batch_state,
     }
 
 
@@ -102,7 +123,11 @@ async def collect_once(redis):
     await evaluation.record_tick(
         observed,
         last if continuous else None,
-        "caught_up" if continuous else "gap_reset_backlog_or_malformed",
+        "caught_up"
+        if continuous
+        else "continuity_break"
+        if state["caught_up"]
+        else state["batch_state"],
     )
     state["polled_at"] = observed.isoformat()
     state["instance_id"] = COLLECTOR_INSTANCE

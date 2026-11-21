@@ -36,6 +36,31 @@ def record(index):
 
 
 class CollectorTests(unittest.IsolatedAsyncioTestCase):
+    def test_concurrent_append_is_read_on_next_poll_without_false_gap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "access.log"
+            first = json.dumps(record(1)["raw"]).encode() + b"\n"
+            second = json.dumps(record(2)["raw"]).encode() + b"\n"
+            path.write_bytes(first)
+            previous = {"inode": path.stat().st_ino, "offset": 0}
+            fstat = os.fstat
+
+            def append_after_boundary(fd):
+                boundary = fstat(fd)
+                with path.open("ab") as writer:
+                    writer.write(second)
+                return boundary
+
+            with patch.object(traffic.os, "fstat", side_effect=append_after_boundary):
+                rows, checkpoint = traffic.read_batch(path, previous)
+            self.assertEqual(len(rows), 1)
+            self.assertTrue(checkpoint["caught_up"])
+            self.assertEqual(checkpoint["offset"], len(first))
+            rows, checkpoint = traffic.read_batch(path, checkpoint)
+            self.assertEqual([row["path"] for row in rows], [record(2)["path"]])
+            self.assertEqual(checkpoint["offset"], len(first) + len(second))
+            self.assertTrue(checkpoint["caught_up"])
+
     def test_long_unicode_target_is_not_truncated(self):
         raw = {
             "StartUTC": "2026-11-12T10:00:00Z",
