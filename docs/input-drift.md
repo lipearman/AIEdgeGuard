@@ -37,7 +37,15 @@ Signals can reflect lab activity, seasonality, deployment/traffic mix, logging c
 
 The overall drift object is `descriptive_only` when the baseline is usable; each test/calibration comparison has its own state. Per-feature states remain visible when another feature flags. Coverage, exclusions and normal/lab/unknown context appear before expandable numeric details. Frozen parameters, split indices, method version and implementation-file SHA-256 remain inspectable in the saved replay/export.
 
-Old replay reports without `input_drift` explicitly show **Not recorded for this saved replay**. Run a new comparison to capture it; same replay UUID still returns its original immutable result, even across version upgrades. New reports use replay version `http-volume-replay-v2-20261122` and drift version `http-input-drift-v1-20261122`. There is no new database schema or write endpoint: the existing gated replay endpoint persists the additional report field.
+Old replay reports without `input_drift` explicitly show **Not recorded for this saved replay**. A new replay UUID captures the current report format. Reusing the original UUID returns its saved result, including across version upgrades. Replay v2 introduced `input_drift`. Replay v3 adds the HTTP categories described below. The existing gated replay endpoint persists these fields.
+
+## HTTP categories in replay v3
+
+New dataset snapshots store aggregate histograms for HTTP method, response status class and path shape (root, one segment, multiple segments or unknown). These buckets use the stored request metadata and count the same host/router and time window as the existing request totals. They retain neither literal paths nor query values. Unrecognized methods are grouped as `other`; missing methods and out-of-range statuses have their own `unknown` bucket. Path shape describes the recorded target before the first `?`, with no decoding or route-template inference.
+
+For eligible calibration and test windows, inspect `input_drift.comparisons.<split>.http_mix` in the pinned report disclosure or JSON export. Each available feature gives counts for both samples and total variation distance, half the sum of absolute differences in category proportions. It ranges from zero for identical proportions to one for disjoint categories. The minimum is 100 requests in each sample, plus the existing eligibility and coverage requirements. The distance is descriptive and does not affect the existing candidate flags or the replay detectors. Unknown categories remain visible in the counts.
+
+Legacy datasets lack these histograms. A new replay on one reports `not_recorded` for the missing input. Creating a fresh dataset from retained traffic captures the new categories. A recorded zero-request window is distinct from a missing histogram. Counts that fail to reconcile with the frozen window total produce an unavailable feature.
 
 Report selection is atomic: the selector retains the displayed replay until a requested report loads successfully. Mutable controls remain disabled during loading; failed reads restore the original selection, keeping exports and drift evidence tied to the displayed report.
 

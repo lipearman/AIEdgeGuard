@@ -5,7 +5,9 @@ import statistics
 from collections import Counter
 from pathlib import Path
 
-VERSION = "http-input-drift-v1-20261122"
+from app import http_mix
+
+VERSION = "http-input-drift-v2-20261122"
 CODE_HASH = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 PARAMETERS = {
     "minimum_windows": 12,
@@ -87,7 +89,9 @@ def compare(training, comparison, truth):
             "reason": "Eligible windows contain invalid/missing request counts; no clean comparison",
         }
     a = [w["requests"] for w in training]
-    b = [w["requests"] for w in comparison if w.get("eligible") is True]
+    eligible = [w for w in comparison if w.get("eligible") is True]
+    b = [w["requests"] for w in eligible]
+    result["http_mix"] = http_mix.compare(training, eligible)
     am, bm = statistics.median(a), statistics.median(b)
     delta = bm - am
     distance = ecdf_distance(a, b)
@@ -119,7 +123,7 @@ def compare(training, comparison, truth):
     ):
         result["error_share"] = {
             "state": "missing_or_invalid_features",
-                "reason": "Error counts unavailable or outside 0..requests; no zero substitution",
+            "reason": "Error counts unavailable or outside 0..requests; no zero substitution",
         }
     else:
         ar, br = sum(a), sum(b)
@@ -165,6 +169,8 @@ def summarize(windows, truth, train_end, test_start):
     result = {
         "version": VERSION,
         "implementation_sha256": CODE_HASH,
+        "http_mix_implementation_sha256": http_mix.CODE_HASH,
+        "http_mix_minimum_requests": http_mix.MIN_REQUESTS,
         "parameters": PARAMETERS.copy(),
         "scope": "Frozen training versus later splits within the same exact host/router dataset; no cross-asset pooling, p-values, causal drift or accuracy claims",
         "split_indices": {

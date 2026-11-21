@@ -43,11 +43,13 @@ Gate met for the operator-attested workflow: an operator can correct an alert, i
 
 1. Collect a labeled normal/lab corpus and establish collector continuity, missing-window handling, application segmentation and drift controls.
 2. Evaluate EWMA or Isolation Forest on CPU against the simple baseline. Add model complexity only when held-out results justify it.
-3. Add error-share, method/path distribution, identity and endpoint process/network features only when evidence is captured and reliably mapped.
+3. Delivered for HTTP snapshots and replay: error share, HTTP method mix, response status classes and coarse path shape. Identity and endpoint process/network features remain gated on reliable mappings and evidence coverage.
 4. Build typed, confidence-qualified attack graphs with observed event time versus ingestion time, late-arrival handling and reproducible case membership. Same IP/time remains a candidate edge.
 5. Add independent maker/checker evidence validation; another prompt on the same model does not establish independent verification.
 
 Gate: replay held-out data, publish false positives/misses and distinguish real sequences from coincidental activity. Do not claim universal zero-day detection.
+
+The evaluation gate requires an operator-labeled corpus with eligible training and held-out windows, including evidence-backed normal and authorized lab classifications. The production registry has not been seeded with such a corpus. Independent review requires authenticated reviewer identities and a source that can corroborate the evidence. Current snapshot and consistency tooling supports this work with audit records, while those operational acceptance criteria remain open.
 
 ## Release 4 Controlled response and operational release
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import behavior_drift as drift
+from app import http_mix
 
 
 def corpus():
@@ -16,6 +17,49 @@ def corpus():
 
 
 class DriftTests(unittest.TestCase):
+    def test_http_mix_distinguishes_missing_sparse_and_shifted_distributions(self):
+        training = [
+            {
+                "requests": 100,
+                "http_mix": {
+                    "method": {"GET": 100},
+                    "status": {"2xx": 100},
+                    "path_shape": {"unknown": 100},
+                },
+            }
+        ]
+        later = [
+            {
+                "requests": 100,
+                "http_mix": {
+                    "method": {"GET": 25, "POST": 75},
+                    "status": {"2xx": 100},
+                    "path_shape": {"unknown": 100},
+                },
+            }
+        ]
+        result = http_mix.compare(training, later)
+        self.assertEqual(result["method"]["total_variation_distance"], 0.75)
+        self.assertEqual(result["status"]["total_variation_distance"], 0)
+        self.assertEqual(
+            http_mix.compare(training, [{"requests": 100}])["method"][
+                "comparison_state"
+            ],
+            "not_recorded",
+        )
+        self.assertEqual(
+            http_mix.compare(
+                training, [{"requests": 100, "http_mix": {"method": {"GET": 1}}}]
+            )["method"]["comparison_state"],
+            "invalid_histogram",
+        )
+        self.assertEqual(
+            http_mix.compare(training, [{"requests": 0, "http_mix": {"method": {}}}])[
+                "method"
+            ]["state"],
+            "insufficient_requests",
+        )
+
     def test_empirical_distance_known_samples_and_ties(self):
         self.assertEqual(drift.ecdf_distance([0, 0, 1, 1], [0, 1]), 0)
         self.assertEqual(drift.ecdf_distance([0, 0], [1, 1]), 1)

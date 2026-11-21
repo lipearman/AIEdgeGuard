@@ -15,11 +15,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from psycopg.rows import dict_row
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app import behavior_drift
+from app import behavior_drift, http_mix
 from app.integrations import db
 
 router = APIRouter(prefix="/api/v1/evaluation", tags=["Offline evaluation"])
-VERSION = "http-volume-replay-v2-20261122"
+VERSION = "http-volume-replay-v3-20261122"
 IMPLEMENTATION_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 SCOPE = (
     "Operator-labeled HTTP host/router volume windows only; not general attack detection. "
@@ -162,6 +162,14 @@ async def snapshot(identity, body):
         )
         aggregates = {int(r["bucket"]): r for r in await cur.fetchall()}
         await cur.execute(
+            http_mix.QUERY, (body.host, body.router, body.start, body.end)
+        )
+        mixes = {}
+        for item in await cur.fetchall():
+            mixes.setdefault(item["bucket"], {}).setdefault(item["feature"], {})[
+                item["category"]
+            ] = item["count"]
+        await cur.execute(
             """SELECT interval_start,observed_at FROM traffic_collection_ticks
           WHERE interval_start IS NOT NULL AND observed_at>%s AND interval_start<%s ORDER BY interval_start""",
             (body.start, body.end),
@@ -190,6 +198,12 @@ async def snapshot(identity, body):
                     "end": end.isoformat(),
                     "requests": row.get("requests", 0),
                     "errors": row.get("errors", 0),
+                    "http_mix": {
+                        feature: mixes.get(int(start.timestamp()) // 300, {}).get(
+                            feature, {}
+                        )
+                        for feature in http_mix.BUCKETS
+                    },
                     "membership_sha256": digest(row.get("members", [])),
                     "max_request_id": row.get("max_request_id"),
                     "last_collected_at": str(row.get("last_collected_at"))

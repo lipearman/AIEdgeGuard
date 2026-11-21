@@ -295,8 +295,8 @@ class EvaluationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         async with await db._connect() as conn:
             # One retained real-shaped fixture; no production writes.
             await conn.execute(
-                """INSERT INTO gateway_requests(fingerprint,observed_at,collected_at,host,router,raw)
-                VALUES ('fixture',%s,%s,'fixture.test','fixture@file','{}')""",
+                """INSERT INTO gateway_requests(fingerprint,observed_at,collected_at,host,router,raw,method,status,path)
+                VALUES ('fixture',%s,%s,'fixture.test','fixture@file','{}','POST',404,'/private/value?token=fixture-secret')""",
                 (start, start - timedelta(seconds=1)),
             )
             await conn.execute(
@@ -310,6 +310,18 @@ class EvaluationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         windows = dataset["snapshot"]["windows"]
         self.assertTrue(all(w["eligible"] for w in windows))
         self.assertEqual(windows[0]["requests"], 1)
+        self.assertEqual(
+            windows[0]["http_mix"],
+            {
+                "method": {"POST": 1},
+                "status": {"4xx": 1},
+                "path_shape": {"multiple_segments": 1},
+            },
+        )
+        self.assertEqual(
+            windows[1]["http_mix"], {"method": {}, "status": {}, "path_shape": {}}
+        )
+        self.assertNotIn("fixture-secret", str(dataset["snapshot"]))
         self.assertEqual(
             (await ev.snapshot(identity, body))["content_hash"], dataset["content_hash"]
         )
