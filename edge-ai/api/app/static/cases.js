@@ -79,7 +79,9 @@
       form
         .querySelectorAll("input,textarea,select")
         .forEach((e) => (e.disabled = value || !!pending));
-      section.querySelectorAll("button").forEach((e) => (e.disabled = value));
+      section.querySelectorAll("button").forEach((e) => {
+        if (!e.closest(".case-checks")) e.disabled = value;
+      });
       save.textContent = pending
         ? "Retry same case snapshot"
         : "Save candidate graph";
@@ -288,6 +290,9 @@
             "case-status error",
           ),
         );
+      const checks = n("div", undefined, "case-check-mount");
+      result.append(checks);
+      window.EdgeCaseChecks.attach(checks, data);
       const visual = n("div", undefined, "case-visual"),
         nodes = n("div", undefined, "case-node-list"),
         pager = n("div", undefined, "case-pager case-node-pager"),

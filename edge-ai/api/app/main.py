@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import applicability, assets, cases, epss, evaluation, intelligence, investigation, knowledge, reviews, telemetry, traffic, triage, watcher, worker
+from app import applicability, assets, case_checks, cases, epss, evaluation, intelligence, investigation, knowledge, reviews, telemetry, traffic, triage, watcher, worker
 from app.agents import attack, decider, decision, defense, detection, learning
 from app.agents.analysis import AnalysisResult, analyze_event
 from app.config import settings
@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI):
     await knowledge.init_schema()
     await applicability.init_schema()
     await cases.init_schema()
+    await case_checks.init_schema()
     _background.append(asyncio.create_task(cases.run()))
     if settings.intelligence_enabled:
         _background.append(asyncio.create_task(intelligence.run()))
@@ -87,6 +88,7 @@ app.include_router(knowledge.router)
 app.include_router(applicability.router)
 app.include_router(evaluation.router)
 app.include_router(cases.router)
+app.include_router(case_checks.router)
 
 Collection = Literal[
     "requests", "incidents", "campaigns", "decisions", "approvals", "attacks"

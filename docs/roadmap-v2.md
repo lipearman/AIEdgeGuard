@@ -37,6 +37,8 @@ Gate met for the operator-attested workflow: an operator can correct an alert, i
 
 **Release 3B delivered 2026-11-22:** [Candidate case graphs](candidate-case-graphs.md) adds source-reported versus ingestion time indexing, bounded late-arrival-aware one-hop associations, typed confidence/reasons, immutable membership/source hashes/current asset context and an Inspect drawer graph with paged text equivalent/history/export. Links remain candidate associations; exact decision references are not proof of enforcement. Causal attack-chain confirmation and independent maker/checker remain open.
 
+**Release 3C delivered 2026-11-22:** [Retained-evidence checks and operator review](case-evidence-checks.md) adds a deterministic source recheck separate from the graph maker, explicit changed/missing/contradicted/unverifiable findings, immutable check reports and revisioned operator annotations pinned to checks. The Inspect drawer supports paging, retry/reload recovery, conflict-preserved drafts and export. This is consistency against shared retained evidence and self-reported review, not authenticated independent maker/checker validation or causal confirmation.
+
 1. Collect a labeled normal/lab corpus and establish collector continuity, missing-window handling, application segmentation and drift controls.
 2. Evaluate EWMA or Isolation Forest on CPU against the simple baseline. Add model complexity only when held-out results justify it.
 3. Add error-share, method/path distribution, identity and endpoint process/network features only when evidence is captured and reliably mapped.
@@ -59,4 +61,4 @@ Gate: repeatable tests cover approval races, stale evidence, model/feed outages,
 
 The chat proposed detection ≥95%, false positives ≤1%, WAF added latency P95 ≤20 ms, AI Triage P95 ≤10 seconds, complete response auditing and sensor availability ≥99.9%. These are candidate objectives, not benchmark results. Define corpus, hardware, traffic, measurement method and reporting interval before accepting them as targets.
 
-Phases1–2 and Phase3A measurement/3B candidate-case tooling are delivered at the documented scope. Remaining Phase3–4 work and evaluation/operational gates are not complete.
+Phases1–2 and Phase3A measurement/3B candidate-case/3C consistency-review tooling are delivered at the documented scope. Remaining Phase3–4 work and evaluation/operational gates are not complete.

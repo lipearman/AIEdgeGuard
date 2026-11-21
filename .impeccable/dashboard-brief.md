@@ -40,6 +40,20 @@ FORM: local code-led extension, no new visual world or concept seed. Minimum36px
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
+## Case consistency and operator review extension contract
+
+THESIS: add a separately computed retained-evidence consistency report and append-only operator annotation; never imply independent source authenticity, verified reviewer identity or causal attack confirmation.
+
+OWN-WORLD: inherit flat midnight/cyan evidence drawer, Barlow headings, Plex Thai body, native disclosures/forms and established focus/control sizes. No new palette, decorative media or token world.
+
+STORY: expand Evidence consistency & analyst review on a saved case; declare a purpose, run a local deterministic check, inspect missing/changed/contradicted versus retained support, then append a self-reported review pinned to the selected immutable check. Old reports keep their facts when source data changes.
+
+FIRST VIEWPORT: a collapsed disclosure before the case diagram preserves graph priority. Expanded content orders purpose form and paginated saved checks, selected report with six findings/page and provenance/export, then separate review form and paginated revision history. Drawer scrolling and mobile wrapping follow the incumbent.
+
+FORM: code-led local extension. Explicit source/identity/causality limits, no green security score; saved review text stays outside editable draft. Check/review UUIDs survive reload; concurrent review conflict retains draft and requires reload. Required viewport drawer captures case-checks-{1440,768,390}.png and case-check-review-{1440,390}.png; verify_case_checks.py uses intercepted synthetic fixtures.
+
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
 ## Candidate case graph extension contract
 
 THESIS: extend request/incident Inspect with a bounded candidate evidence graph, showing why records connect without implying a causal attack chain.

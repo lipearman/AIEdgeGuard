@@ -1,0 +1,55 @@
+.case-checks {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin: 20px 0;
+}
+.case-checks > summary {
+  padding: 14px 0;
+}
+.case-checks-inner {
+  padding-bottom: 20px;
+}
+.case-checks fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.case-checks .case-form {
+  margin: 16px 0;
+}
+.case-check-findings {
+  margin-top: 20px;
+}
+.case-check-finding {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.case-check-finding p {
+  margin: 6px 0;
+}
+.case-checks .check-state {
+  font-size: 14px;
+  color: var(--text);
+}
+.case-checks .check-state[data-problem="true"] {
+  color: var(--amber);
+}
+.case-checks .check-status {
+  min-height: 1.7em;
+  color: var(--workspace-muted, #a9c8dc);
+}
+.case-checks .check-status.error {
+  color: var(--red);
+}
+.case-checks .case-pager {
+  margin-bottom: 20px;
+}
+.case-check-review {
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding-top: 16px;
+}
+.case-checks select {
+  max-width: 100%;
+}
