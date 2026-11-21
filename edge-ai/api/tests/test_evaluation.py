@@ -380,3 +380,45 @@ class EvaluationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         dataset = await ev.snapshot(uuid4(), body)
         self.assertFalse(any(w["eligible"] for w in dataset["snapshot"]["windows"]))
         self.assertEqual((await ev.datasets(1, 20))["total"], 1)
+
+    async def test_observed_segments_and_saved_run_paging(self):
+        start = datetime(2026, 1, 1, tzinfo=UTC)
+        async with await db._connect() as conn:
+            for i in range(12):
+                await conn.execute(
+                    """INSERT INTO gateway_requests(fingerprint,observed_at,host,router,raw)
+                    VALUES (%s,%s,%s,'fixture@file','{}')""",
+                    (str(i), start, f"fixture-{i:02}.test"),
+                )
+            await conn.commit()
+        first, second = await ev.segments(1, 10), await ev.segments(2, 10)
+        self.assertEqual(
+            (first["total"], len(first["items"]), len(second["items"])), (12, 10, 2)
+        )
+        self.assertFalse(
+            {x["host"] for x in first["items"]} & {x["host"] for x in second["items"]}
+        )
+        identity = uuid4()
+        await ev.snapshot(
+            identity,
+            ev.DatasetInput(
+                host="fixture-00.test",
+                router="fixture@file",
+                start=start,
+                end=start + timedelta(hours=5),
+                declared_by="Fixture",
+                rationale="Fixture paging verification",
+            ),
+        )
+        for _ in range(3):
+            await ev.run_replay(identity, uuid4())
+        first, second = (
+            await ev.dataset_runs(identity, 1, 2),
+            await ev.dataset_runs(identity, 2, 2),
+        )
+        self.assertEqual(
+            (first["total"], len(first["items"]), len(second["items"])), (3, 2, 1)
+        )
+        self.assertFalse(
+            {x["id"] for x in first["items"]} & {x["id"] for x in second["items"]}
+        )

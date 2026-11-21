@@ -25,3 +25,17 @@ AI Triage extension: user provided a two-pane Wazuh/Ollama copilot reference. Ad
 2026-11-21 Release 2C.1: Intelligence adds a FIRST EPSS section above reviewed memory and KEV. Preserve Operate world. One exact CVE input, public cached read and explicitly gated Fetch from FIRST, 24-hour cache, on-demand scope (no EPSS daily sync), probability versus percentile rank, score-date/fetch/latest-attempt provenance, current/stale/missing/error states, immutable snapshot link and FIRST attribution. No asset applicability/severity/exploitation/enforcement inference. KEV entries expose View EPSS to select the CVE and read cache. Required captures epss-{1440,768,390}.png; verify_epss.py covers4widths/3prefixes.
 
 2026-11-21 Phase2 completion: Sources tab extends the Operate world with two desktop columns (NVD/cache/fetch + revision-bound declared-product assessment/history; retained MITRE/DROP status, technique search/paging and local IP lookup), stacking below1000px. Native inputs/disclosures; control heights36px/44px mobile. Saved assessment rationale is read-only and separate from a retained draft. Unsupported CPE/version/environment conditions require review; candidate/no-match never proves affected/safe state. Assets accepts optional CPE2.3 and numeric_dot/unknown scheme; links saved revision to check. Incident drawer adds source links and prompt/model provenance; observed model digest is not runtime attestation. Triage provenance follows cleaned payload. Active tab stays horizontally visible on narrow screens. Required captures sources-{1440,768,390}.png, source-provenance-{1440,390}.png, triage-{1440,768,390}.png and current asset captures. No policy/auth/autoexecution changes.
+
+## Evaluation extension contract
+
+THESIS: extend the existing Operate surface with a traceable measurement workflow, never a decorative performance score or a claim of proven detection.
+
+OWN-WORLD: inherit midnight panels, cyan actions, Barlow Condensed headings, IBM Plex Sans Thai body and the existing static shield background. Flat sections, native forms/disclosures, established button and table language.
+
+STORY: inspect collector continuity; choose or create an immutable host/router snapshot; review individual windows; append audited labels; run or reopen a pinned CPU comparison. Unknown and gapped data stay explicit.
+
+FIRST VIEWPORT: existing navigation/summary and Evaluation tab, collector status, two desktop columns for dataset list/create and selected windows. Stack below1000px; mobile shows four labeled windows/page, desktop eight. Replay/results follow; saved rationale is separate from draft.
+
+FORM: local code-led extension, no new visual world or concept seed. Minimum36px controls,44px on mobile; keyboard focus; paged observations/datasets/labels/reports; pending write UUID recovery across reload. Evidence evaluation-{1440,768,390}.png, evaluation-empty-390.png, evaluation-label-{1440,390}.png and verify_evaluation.py. Synthetic captures are not production benchmarks.
+
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

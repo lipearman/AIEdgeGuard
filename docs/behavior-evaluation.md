@@ -1,6 +1,19 @@
 # Phase3A — immutable HTTP corpus and CPU replay
 
-Delivered 2026-11-21. This release supplies the **API and operator CLI**, not a new dashboard tab. Phase3 attack graphs, richer features, drift controls and independent maker/checker validation remain open.
+Delivered 2026-11-21. Phase3A supplies the **API, operator CLI and Dashboard Evaluation tab**. Phase3 attack graphs, richer features, drift controls and independent maker/checker validation remain open.
+
+## Dashboard workflow
+
+Open `/AIEdgeGuard/dashboard#evaluation` (also supported on the root route and `/aiedge`). The existing Mission-derived visual system is preserved; the page stacks on narrow screens, with eight frozen windows per page on desktop and four on mobile.
+
+1. Inspect collector status and first available continuity time. Unavailable/stale status is explicit; earlier history is not retroactively certified.
+2. Select a dataset, or expand **Create snapshot**. Choose a retained observed host/router pair or enter exact values; specify UTC time boundaries, a self-reported author and scope/evidence. Observed pairs are not verified assets. Snapshot creation can succeed with gaps; those windows remain ineligible for scoring.
+3. Select **Label #…**, inspect the saved revision separately from the blank draft, and append `normal`, `lab_attack` or `unknown` with evidence. No auto-label or bulk assumption of normal traffic is supplied. Label history is paginated. A revision conflict preserves the draft and requires **Reload latest revision** before another save.
+4. **Run CPU comparison** uses saved label revisions. Inspect held-out test versus calibration confusion counts, excluded windows and rate-withholding states. Select older reports from the paginated list or export the pinned JSON. Dataset export includes current labels; a saved run continues to pin its original label revisions.
+
+Writes use the existing Operation Key. An ambiguous network response keeps the original dataset/request/run UUID and input in this tab's session storage, locks the pending input and offers a same-request retry. Reloading the tab restores pending writes; switching datasets cannot move a pending label/run to another dataset. Operation-key cancellation sends nothing. Session storage is not long-term audit storage; do not clear it before resolving an ambiguous write. Browser exports may contain declared names and operational metadata; handle them as operator data.
+
+The minimum five-hour dataset is not enough to publish test rates by itself: the fixed20% test split still needs at least25 eligible labeled windows including both classes. Collect a suitably longer period and evidence-based labels; additional windows alone do not establish valid generalization.
 
 ## What can be measured
 
@@ -81,18 +94,20 @@ Default base URL is `http://127.0.0.1:8099`. Use `--base-url https://llm-server.
 | Method/path | Purpose |
 |---|---|
 | GET `/status` | Prospective collector status and dataset count |
+| GET `/segments?page=1&page_size=10` | Paginated retained host/router observations, maximum page size50 |
 | GET `/datasets?page=1&page_size=20` | Paginated dataset listing, maximum page size50 |
 | PUT `/datasets/{uuid}` | Gated immutable snapshot creation, idempotent by UUID/input |
 | GET `/datasets/{uuid}` | Snapshot, latest label per window and latest50 run summaries |
 | POST `/datasets/{uuid}/labels` | Gated append-only label with revision/idempotency checks |
 | GET `/datasets/{uuid}/labels/{window_index}?page=1` | Paginated label history, 50 revisions/page |
 | POST `/datasets/{uuid}/runs/{run_uuid}` | Gated deterministic replay and immutable report |
+| GET `/datasets/{uuid}/runs?page=1&page_size=10` | Paginated saved run summaries, maximum page size50 |
 | GET `/runs/{run_uuid}` | Original pinned report/export |
 
 ## Validation and deployment
 
 Tests use only the isolated database `edgeguard_test`: coverage union, restart/gap/partial/malformed checkpoint behavior, future/test-label leakage, unknown/gapped exclusions, sample floors, write gates, input validation, CAS/idempotency, append-only history and late-arrival snapshot stability. Synthetic fixture results are engineering tests, not measured production performance. No production traffic labels or fabricated datasets are seeded by deployment.
 
-Validation on 2026-11-21: the full 104-case backend suite passed locally and in Docker; after the process-restart guard and additional backlog test, the targeted 7-case evaluation suite also passed in both runtimes. Ruff passed for changed implementation/tests/CLI. Live health reports Ollama/CrowdSec/Redis/Postgres `ok`; Mission/Dashboard and source status return200; an unauthenticated replay returns403. The public443 canonical route serves evaluation status with `collecting` and an empty dataset registry. No production benchmark has been run.
+Validation on 2026-11-21: the full 106-case backend suite passed locally; all8 evaluation-specific tests passed in Docker, including observed-segment and saved-run paging. The earlier104-case backend suite also passed in Docker. Dashboard regression checks passed at5 widths/3 prefixes; Evaluation passed at4 widths/3 prefixes with empty/error/recovery, snapshot/label/run retry across reload, CAS/draft handling, paging, keyboard focus, pinned exports, missing-data states, XSS and overflow checks. Ruff passed for changed implementation/tests. Fresh finish review returned `ship` for the scoped UI extension; the documenter confirmed the incumbent design system covers it without token changes. Live health reports Ollama/CrowdSec/Redis/Postgres `ok`; an unauthenticated replay returns403. The public443 canonical route serves evaluation status and the registry remains empty. No production benchmark has been run.
 
-The additive schema initializes with the API. Deploy only the API container using the existing compose file. Rollback image for this release: `edge-ai-api:before-phase3a-20261121`; retain additive tables/history. Authentication, policy, lab and auto-execution settings are unchanged.
+The additive schema initializes with the API. Deploy only the API container using the existing compose file. Rollback images: `edge-ai-api:before-phase3a-20261121` before the evaluation backend; `edge-ai-api:before-evaluation-ui-20261121` before its Dashboard extension. Retain additive tables/history. Authentication, policy, lab and auto-execution settings are unchanged.

@@ -31,6 +31,10 @@ const layers = {
   manual: "MANUAL",
 };
 const tabs = {
+  evaluation: [
+    "Behavior evaluation",
+    "Labeled HTTP windows · chronological CPU replay · measured limits",
+  ],
   sources: [
     "Source library & applicability",
     "NVD · MITRE ATT&CK · IP reputation · declared product checks",
@@ -301,6 +305,7 @@ function configureFilters() {
     "intelligence",
     "assets",
     "sources",
+    "evaluation",
   ].includes(kind);
   $("pager").hidden = [
     "policy",
@@ -308,14 +313,17 @@ function configureFilters() {
     "intelligence",
     "assets",
     "sources",
+    "evaluation",
   ].includes(kind);
   $("dataView").hidden = [
     "triage",
     "intelligence",
     "assets",
     "sources",
+    "evaluation",
   ].includes(kind);
   $("knowledgeWorkspace").hidden = kind !== "sources";
+  $("evaluationWorkspace").hidden = kind !== "evaluation";
   $("assetsWorkspace").hidden = kind !== "assets";
   $("intelligenceWorkspace").hidden = kind !== "intelligence";
   $("triageWorkspace").hidden = kind !== "triage";
@@ -324,6 +332,7 @@ function configureFilters() {
     "intelligence",
     "assets",
     "sources",
+    "evaluation",
   ].includes(kind);
   $("dataView").setAttribute("aria-labelledby", "tab-" + kind);
 }
@@ -378,6 +387,13 @@ async function loadPage() {
   $("dataView").setAttribute("aria-busy", "true");
   $("refreshState").textContent = "กำลังโหลดข้อมูล…";
   try {
+    if (kind === "evaluation") {
+      await window.EdgeEvaluation.refresh();
+      if (ticket === sequence)
+        $("refreshState").textContent =
+          "Offline evaluation · no automatic enforcement";
+      return;
+    }
     if (kind === "sources") {
       await window.EdgeKnowledge.refresh();
       if (ticket === sequence)

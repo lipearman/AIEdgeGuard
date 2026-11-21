@@ -19,7 +19,9 @@
     <link rel="stylesheet" href="static/assets.css?v=20261121" />
     <script src="static/assets.js?v=20261121-cpe" defer></script>
     <script src="static/reviews.js?v=20261121-v1" defer></script>
-    <script src="static/dashboard.js?v=20261121-sources" defer></script>
+    <link rel="stylesheet" href="static/evaluation.css?v=20261121" />
+    <script src="static/evaluation.js?v=20261121" defer></script>
+    <script src="static/dashboard.js?v=20261121-evaluation" defer></script>
   </head>
   <body class="dashboard-page">
     <svg
@@ -204,6 +206,14 @@
             data-kind="sources"
           >
             Sources</button
+          ><button
+            id="tab-evaluation"
+            role="tab"
+            aria-controls="evaluationWorkspace"
+            aria-selected="false"
+            data-kind="evaluation"
+          >
+            Evaluation</button
           ><button
             id="tab-assets"
             role="tab"
@@ -391,6 +401,13 @@ Not generated</pre
             </section>
           </div>
         </section>
+        <section
+          id="evaluationWorkspace"
+          class="evaluation-workspace"
+          role="tabpanel"
+          aria-labelledby="tab-evaluation"
+          hidden
+        ></section>
         <section
           id="knowledgeWorkspace"
           class="knowledge-workspace"

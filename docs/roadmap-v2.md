@@ -33,7 +33,7 @@ Gate met for the operator-attested workflow: an operator can correct an alert, i
 
 ## Release 3 Measured behavior and attack chains
 
-**Release 3A delivered 2026-11-21:** [HTTP corpus and CPU replay API/CLI](behavior-evaluation.md) adds prospective collector continuity, immutable per-host/router aggregate datasets, append-only normal/lab-attack/unknown labels and chronological frozen median/MAD versus EWMA comparison. Reports pin dataset/code/label revisions and withhold rates for insufficient labeled data. No production corpus is automatically labeled; this is measurement infrastructure, not a completed Phase3 gate. Dashboard evaluation UI, drift controls, richer features, attack graphs and independent checker remain open.
+**Release 3A delivered 2026-11-21:** [HTTP corpus and CPU replay](behavior-evaluation.md) adds prospective collector continuity, immutable per-host/router aggregate datasets, append-only normal/lab-attack/unknown labels and chronological frozen median/MAD versus EWMA comparison. Reports pin dataset/code/label revisions and withhold rates for insufficient labeled data. The responsive Evaluation tab now exposes this workflow at `/AIEdgeGuard/dashboard#evaluation`, including paginated observations/windows/history/reports, pending-write recovery and JSON export. No production corpus is automatically labeled; this is measurement infrastructure, not a completed Phase3 gate. Drift controls, richer features, attack graphs and independent checker remain open.
 
 1. Collect a labeled normal/lab corpus and establish collector continuity, missing-window handling, application segmentation and drift controls.
 2. Evaluate EWMA or Isolation Forest on CPU against the simple baseline. Add model complexity only when held-out results justify it.

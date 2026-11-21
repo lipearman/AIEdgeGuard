@@ -484,6 +484,46 @@ async def datasets(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, 
         }
 
 
+@router.get("/segments")
+async def segments(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=50)):
+    async with await db._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+        await conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        await cur.execute(
+            "SELECT count(*) AS total FROM (SELECT host,router FROM gateway_requests WHERE host<>'' GROUP BY host,router) s"
+        )
+        total = (await cur.fetchone())["total"]
+        await cur.execute(
+            """SELECT host,router,count(*)::int AS requests,min(observed_at) AS first_seen,
+            max(observed_at) AS last_seen FROM gateway_requests WHERE host<>'' GROUP BY host,router
+            ORDER BY host,router LIMIT %s OFFSET %s""",
+            (page_size, (page - 1) * page_size),
+        )
+        return {
+            "items": await cur.fetchall(),
+            "total": total,
+            "page": page,
+            "scope": "Retained observed HTTP host/router pairs, not a verified inventory or continuity guarantee",
+        }
+
+
+@router.get("/datasets/{identity}/runs")
+async def dataset_runs(
+    identity: UUID, page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=50)
+):
+    async with await db._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+        await conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        await cur.execute(
+            "SELECT count(*) AS total FROM evaluation_runs WHERE dataset_id=%s",
+            (identity,),
+        )
+        total = (await cur.fetchone())["total"]
+        await cur.execute(
+            "SELECT id,created_at,report->>'state' AS state FROM evaluation_runs WHERE dataset_id=%s ORDER BY created_at DESC,id LIMIT %s OFFSET %s",
+            (identity, page_size, (page - 1) * page_size),
+        )
+        return {"items": await cur.fetchall(), "total": total, "page": page}
+
+
 @router.get("/datasets/{identity}")
 async def detail(identity: UUID):
     async with await db._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
