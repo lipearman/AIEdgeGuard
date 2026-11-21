@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from app import intelligence, investigation, main, traffic
+from app import assets, intelligence, investigation, main, traffic
 from app.integrations import dashboard_db, db
 
 
@@ -200,6 +200,7 @@ class IntelligenceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await db.init_schema()
         await dashboard_db.init_schema()
         await intelligence.init_schema()
+        await assets.init_schema()
         async with await db._connect() as conn:
             await conn.execute(
                 "TRUNCATE incidents,decisions,gateway_requests,known_vulnerabilities RESTART IDENTITY CASCADE"

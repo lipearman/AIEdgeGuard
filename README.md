@@ -121,6 +121,8 @@ Compose gateway ผูกกับ network และไฟล์ของแอ�
 
 Release 2A เพิ่ม [Analyst Feedback และ Reviewed AI Memory](docs/analyst-reviews.md): ตรวจ TP/FP/Unknown พร้อมประวัติ revision และใช้เฉพาะ latest True Positive ใน RAG โดยเก็บ raw evidence, ผล AI และ legacy vectors เดิมไว้
 
+Release 2B เพิ่ม [Asset Inventory และ explicit mappings](docs/asset-inventory.md): ทะเบียน host/application/service, owner/criticality, OS/software version, ประวัติ revision และผูก route ไปยัง parent host เพื่อประกอบ candidate timeline เปิดที่ `/AIEdgeGuard/dashboard#assets`
+
 1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
 2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)
 3. วัด false positives และประสิทธิภาพจาก traffic จริงก่อนเปิด auto-execution

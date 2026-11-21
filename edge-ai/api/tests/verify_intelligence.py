@@ -169,6 +169,35 @@ def run():
                     else:
                         data = {
                             "scope": "Candidate correlation, not proof of causation.",
+                            "asset_context": {
+                                "asset": {
+                                    "asset_id": "fixture-app",
+                                    "revision": 3,
+                                    "mapped_at": "2026-11-21T01:00:00Z",
+                                    "payload": {
+                                        "name": "Fixture mapped app <img src=x onerror=window.injected=1>",
+                                        "kind": "application",
+                                        "owner": "Fixture owner",
+                                        "criticality": "high",
+                                    },
+                                },
+                                "parent_host": {
+                                    "asset_id": "fixture-host",
+                                    "revision": 2,
+                                    "mapped_at": "2026-11-21T01:00:00Z",
+                                    "payload": {
+                                        "name": "Fixture mapped host",
+                                        "kind": "host",
+                                        "owner": "Fixture host owner",
+                                        "criticality": "critical",
+                                    },
+                                },
+                                "match_reasons": [
+                                    "exact observed host/router and longest literal path prefix"
+                                ],
+                                "warnings": [],
+                                "scope": "Current operator-attested mapping, not event-time identity.",
+                            },
                             "inspection": {
                                 "decoded_target": "/../?q=<script>&token=[redacted]",
                                 "scope": "Syntax only",

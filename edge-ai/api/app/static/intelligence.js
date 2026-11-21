@@ -232,6 +232,41 @@
         );
         if (controller !== investigationAbort) return;
         const children = [n("p", data.scope, "payload-note")];
+        if (data.asset_context) {
+          const context = data.asset_context;
+          children.push(
+            n("h4", "Mapped asset context"),
+            n("p", context.scope, "payload-note"),
+          );
+          for (const asset of [context.asset, context.parent_host].filter(
+            Boolean,
+          )) {
+            children.push(
+              n(
+                "p",
+                `${asset.payload.name} · ${asset.payload.kind} · owner ${asset.payload.owner || "not recorded"} · ${asset.payload.criticality} · revision ${asset.revision} · mapped ${date(asset.mapped_at)}`,
+              ),
+            );
+            const details = n("details");
+            details.append(
+              n("summary", "Operator-declared asset metadata"),
+              n("pre", JSON.stringify(asset, null, 2), "evidence-code"),
+            );
+            children.push(details);
+          }
+          if (!context.asset)
+            children.push(
+              n(
+                "p",
+                "No unambiguous active asset mapping found. Register bindings in Assets; missing mapping does not mean no attack.",
+              ),
+            );
+          if (context.match_reasons.length)
+            children.push(n("p", context.match_reasons.join(" · ")));
+          context.warnings.forEach((warning) =>
+            children.push(n("p", warning, "payload-note")),
+          );
+        }
         if (data.inspection) {
           children.push(
             n("h4", "Decoded target & query"),

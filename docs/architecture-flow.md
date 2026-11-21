@@ -2,7 +2,7 @@
 
 Current source-aligned diagram, 2026-11-13:
 
-The 2026-11-21 [V2 foundation](v2-foundation.md) adds KEV catalog/enrichment, CPU traffic baseline and candidate investigation timeline. Those additions are documented separately; the image below remains the dated 2026-11-13 architecture reference.
+The 2026-11-21 [V2 foundation](v2-foundation.md) adds KEV catalog/enrichment, CPU traffic baseline and candidate investigation timeline. Release 2A adds revision-bound reviewed-TP-only memory; Release 2B adds [operator-attested asset mappings](asset-inventory.md) from HTTP routes to parent-host candidate IDS/EDR evidence. These current mappings are not historical verified identity. Those additions are documented separately; the image below remains the dated 2026-11-13 architecture reference.
 
 ![Current LACD architecture](assets/examples/architecture-current.png)
 
@@ -20,7 +20,7 @@ Traefik access logs follow an independent request-collector branch into PostgreS
 - Suricata EVE and Wazuh Manager alert files → Sensor Ingestion → PostgreSQL incidents.
 - PostgreSQL durable outbox → Redis Streams → Worker/Analysis Agent ↔ host Ollama; analysis results are written back to PostgreSQL.
 - Detection and Decision are separate consumers of analyzed incidents. Detection correlates campaigns; Decision applies deterministic policy. Detection is not a prerequisite stage feeding Decision.
-- Learning embeds analyzed incidents through Ollama and stores pgvector memory. Similar-incident context feeds analysis; this is retrieval, not model training.
+- Since Release 2A (2026-11-21), Learning embeds only the latest reviewed True Positive incident revisions through Ollama and stores revision-bound pgvector memory; legacy vectors are retained but excluded from retrieval. Similar-incident context feeds analysis; this is retrieval, not model training.
 
 The picture groups API/Redis/PostgreSQL within the Docker boundary. Ollama is the existing host service; Windows agents are not Docker containers. Repeated storage/Ollama references in the Triage lane denote the same existing services.
 

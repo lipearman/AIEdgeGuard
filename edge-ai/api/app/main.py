@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import intelligence, investigation, reviews, telemetry, traffic, triage, watcher, worker
+from app import assets, intelligence, investigation, reviews, telemetry, traffic, triage, watcher, worker
 from app.agents import attack, decider, decision, defense, detection, learning
 from app.agents.analysis import AnalysisResult, analyze_event
 from app.config import settings
@@ -45,6 +45,7 @@ async def lifespan(app: FastAPI):
     await dashboard_db.init_schema()
     await intelligence.init_schema()
     await reviews.init_schema()
+    await assets.init_schema()
     if settings.intelligence_enabled:
         _background.append(asyncio.create_task(intelligence.run()))
     if settings.request_history_enabled:
@@ -73,6 +74,7 @@ app.include_router(triage.router)
 app.include_router(intelligence.router)
 app.include_router(investigation.router)
 app.include_router(reviews.router)
+app.include_router(assets.router)
 
 Collection = Literal[
     "requests", "incidents", "campaigns", "decisions", "approvals", "attacks"
@@ -156,6 +158,11 @@ async def intelligence_sync(_op: None = Depends(require_operation_key)):
 @app.post("/api/v1/reviews/{incident_id}")
 async def save_review(incident_id: int, body: reviews.ReviewInput, _op: None = Depends(require_operation_key)):
     return await reviews.save(incident_id, body)
+
+
+@app.post("/api/v1/assets/{asset_id}")
+async def save_asset(asset_id: uuid.UUID, body: assets.AssetInput, _op: None = Depends(require_operation_key)):
+    return await assets.save(asset_id, body)
 
 
 @app.get("/", include_in_schema=False)

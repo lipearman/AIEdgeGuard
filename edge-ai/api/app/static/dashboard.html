@@ -11,10 +11,12 @@
     <link rel="stylesheet" href="static/triage.css?v=20261113-final" />
     <script src="static/triage.js?v=20261113-final" defer></script>
     <link rel="stylesheet" href="static/intelligence.css?v=20261121" />
-    <script src="static/intelligence.js?v=20261121-reviews" defer></script>
+    <script src="static/intelligence.js?v=20261121-assets" defer></script>
     <link rel="stylesheet" href="static/reviews.css?v=20261121" />
+    <link rel="stylesheet" href="static/assets.css?v=20261121" />
+    <script src="static/assets.js?v=20261121" defer></script>
     <script src="static/reviews.js?v=20261121-v1" defer></script>
-    <script src="static/dashboard.js?v=20261121-reviews" defer></script>
+    <script src="static/dashboard.js?v=20261121-assets" defer></script>
   </head>
   <body class="dashboard-page">
     <svg
@@ -192,6 +194,14 @@
           >
             Intelligence</button
           ><button
+            id="tab-assets"
+            role="tab"
+            aria-controls="assetsWorkspace"
+            aria-selected="false"
+            data-kind="assets"
+          >
+            Assets</button
+          ><button
             id="tab-approvals"
             role="tab"
             aria-controls="dataView"
@@ -364,6 +374,13 @@
             </section>
           </div>
         </section>
+        <section
+          id="assetsWorkspace"
+          class="assets-workspace"
+          role="tabpanel"
+          aria-labelledby="tab-assets"
+          hidden
+        ></section>
         <section
           id="intelligenceWorkspace"
           class="intelligence-workspace"

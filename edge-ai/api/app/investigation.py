@@ -12,7 +12,7 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from fastapi import APIRouter, HTTPException, Query
 from psycopg.rows import dict_row
 
-from app import intelligence
+from app import assets, intelligence
 from app.integrations import dashboard_db, db
 
 router = APIRouter(prefix="/api/v1/investigation", tags=["Investigation"])
@@ -137,7 +137,17 @@ async def timeline(
         raise HTTPException(404, "Anchor record no longer retained")
     timestamp = anchor["observed_at" if kind == "requests" else "created_at"]
     keys = identity(kind, anchor)
+    asset_context = assets.resolve(kind, anchor, await assets.current_registry())
+    mapped = asset_context["bindings"]
     conditions, values = [], []
+    if mapped["agent_ids"]:
+        conditions.append("(source='wazuh' AND event->'event'->'agent'->>'id'=ANY(%s))")
+        values.append(mapped["agent_ids"])
+    if mapped["ips"]:
+        conditions.append(
+            "(event->'event'->'agent'->>'ip'=ANY(%s) OR event->'event'->>'src_ip'=ANY(%s) OR event->'event'->>'dest_ip'=ANY(%s))"
+        )
+        values.extend([mapped["ips"]] * 3)
     if keys["source_ip"]:
         conditions.append("source_ip=%s")
         values.append(keys["source_ip"])
@@ -204,7 +214,19 @@ async def timeline(
     records = [
         {**r, "match_reasons": correlation_reasons(keys, r)} for r in candidates[:50]
     ]
+    for record in records:
+        if (
+            record.get("source") == "wazuh"
+            and record.get("agent_id") in mapped["agent_ids"]
+        ) or any(
+            record.get(key) in mapped["ips"]
+            for key in ("agent_ip", "src_ip", "dest_ip")
+        ):
+            record["match_reasons"].append(
+                "current operator-mapped host binding (not event-time identity)"
+            )
     return {
+        "asset_context": asset_context,
         "anchor": {"kind": kind, "id": item_id, "time": timestamp},
         "identity": keys,
         "window_minutes": minutes,

@@ -31,6 +31,10 @@ const layers = {
   manual: "MANUAL",
 };
 const tabs = {
+  assets: [
+    "Asset inventory & identity",
+    "Operator-attested hosts, applications and services",
+  ],
   intelligence: [
     "Threat intelligence & investigation",
     "Known exploited vulnerabilities · CPU traffic baseline · evidence-first investigation",
@@ -287,16 +291,23 @@ function configureFilters() {
   $("sourceFilter").value = "";
   $("recordSeverity").value = "";
   $("labControls").hidden = kind !== "attacks";
-  $("tableToolbar").hidden = ["policy", "triage", "intelligence"].includes(
+  $("tableToolbar").hidden = [
+    "policy",
+    "triage",
+    "intelligence",
+    "assets",
+  ].includes(kind);
+  $("pager").hidden = ["policy", "triage", "intelligence", "assets"].includes(
     kind,
   );
-  $("pager").hidden = ["policy", "triage", "intelligence"].includes(kind);
-  $("dataView").hidden = ["triage", "intelligence"].includes(kind);
+  $("dataView").hidden = ["triage", "intelligence", "assets"].includes(kind);
+  $("assetsWorkspace").hidden = kind !== "assets";
   $("intelligenceWorkspace").hidden = kind !== "intelligence";
   $("triageWorkspace").hidden = kind !== "triage";
   document.querySelector(".capture-note").hidden = [
     "triage",
     "intelligence",
+    "assets",
   ].includes(kind);
   $("dataView").setAttribute("aria-labelledby", "tab-" + kind);
 }
@@ -339,6 +350,13 @@ async function loadPage() {
   $("dataView").setAttribute("aria-busy", "true");
   $("refreshState").textContent = "กำลังโหลดข้อมูล…";
   try {
+    if (kind === "assets") {
+      await window.EdgeAssets.refresh();
+      if (ticket === sequence)
+        $("refreshState").textContent =
+          "Operator-attested inventory · current mappings";
+      return;
+    }
     if (kind === "intelligence") {
       await window.EdgeIntelligence.refresh();
       if (ticket === sequence)

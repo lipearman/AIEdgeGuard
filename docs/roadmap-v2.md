@@ -21,11 +21,11 @@ Open `/AIEdgeGuard/dashboard#intelligence`; use **Inspect → Investigate timeli
 
 ## Release 2 Reviewed knowledge and identity
 
-**Release 2A delivered 2026-11-21:** [Analyst feedback and reviewed AI memory](analyst-reviews.md) implements items 1–2 below with append-only revision history, concurrency/idempotency guards and latest-TP-only retrieval. Reviewer labels are self-declared behind the shared Operation Key, so verified named identity remains future work. Asset Inventory and the other items remain planned.
+**Release 2A delivered 2026-11-21:** [Analyst feedback and reviewed AI memory](analyst-reviews.md) implements items 1–2 below with append-only revision history, concurrency/idempotency guards and latest-TP-only retrieval. Reviewer labels are self-declared behind the shared Operation Key, so verified named identity remains future work. Release 2B adds the operator-attested inventory below; independently verified identities and other items remain planned.
 
 1. Delivered: True Positive/False Positive/Unknown feedback with append-only audit, declared reviewer label/authorization method, rationale and versioned corrections. Analyst annotations stay separate from raw evidence/model output. Authenticated actor identity and evaluation metrics remain planned.
 2. Delivered for RAG: latest reviewed True Positives only; False Positive/Unknown/unreviewed and stale vectors are excluded without deleting audit history. Feedback does not activate a defense rule. Labeled evaluation/benchmarking remains planned.
-3. Add verified asset/application/service identity, versions, ownership and criticality. Use explicit mappings to link WAF, IDS and EDR instead of shared addresses.
+3. **Release 2B delivered 2026-11-21:** [Asset Inventory](asset-inventory.md), owner/criticality, OS/software versions, revision history and explicit Wazuh agent/endpoint or HTTP host/router/path mappings. Mapped routes can link to parent-host candidate IDS/EDR evidence. Shared IPs do not establish unique identity. Current declarations are operator-attested, not independently verified or historical event-time identity; CVE applicability remains planned.
 4. Add NVD/CVE, EPSS, MITRE ATT&CK and selected IOC sources incrementally, checking schemas, licenses/quotas, provenance, freshness and deduplication for each.
 5. Persist structured citations, prompt/model versions and product/version applicability checks, separate from model-proposed CVE mentions.
 
