@@ -33,6 +33,8 @@ Gate met for the operator-attested workflow: an operator can correct an alert, i
 
 ## Release 3 Measured behavior and attack chains
 
+**Release 3A delivered 2026-11-21:** [HTTP corpus and CPU replay API/CLI](behavior-evaluation.md) adds prospective collector continuity, immutable per-host/router aggregate datasets, append-only normal/lab-attack/unknown labels and chronological frozen median/MAD versus EWMA comparison. Reports pin dataset/code/label revisions and withhold rates for insufficient labeled data. No production corpus is automatically labeled; this is measurement infrastructure, not a completed Phase3 gate. Dashboard evaluation UI, drift controls, richer features, attack graphs and independent checker remain open.
+
 1. Collect a labeled normal/lab corpus and establish collector continuity, missing-window handling, application segmentation and drift controls.
 2. Evaluate EWMA or Isolation Forest on CPU against the simple baseline. Add model complexity only when held-out results justify it.
 3. Add error-share, method/path distribution, identity and endpoint process/network features only when evidence is captured and reliably mapped.
@@ -55,4 +57,4 @@ Gate: repeatable tests cover approval races, stale evidence, model/feed outages,
 
 The chat proposed detection ≥95%, false positives ≤1%, WAF added latency P95 ≤20 ms, AI Triage P95 ≤10 seconds, complete response auditing and sensor availability ≥99.9%. These are candidate objectives, not benchmark results. Define corpus, hardware, traffic, measurement method and reporting interval before accepting them as targets.
 
-Phases1–2 implementation is delivered at the documented scope. Phases3–4 remain open; the complete V2 program and its evaluation/operational gates are not complete.
+Phases1–2 implementation and the Phase3A measurement API/CLI are delivered at the documented scope. The remaining Phase3–4 work and evaluation/operational gates are not complete.

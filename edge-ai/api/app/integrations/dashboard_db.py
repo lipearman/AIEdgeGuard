@@ -8,6 +8,10 @@ from psycopg.rows import dict_row
 from app.integrations import db
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS traffic_collection_ticks (
+ observed_at timestamptz PRIMARY KEY, interval_start timestamptz,
+ state text NOT NULL, CHECK(interval_start IS NULL OR interval_start<observed_at)
+);
 CREATE TABLE IF NOT EXISTS gateway_requests (
  id bigserial PRIMARY KEY, fingerprint text UNIQUE NOT NULL,
  observed_at timestamptz NOT NULL, source_ip text NOT NULL DEFAULT '',
@@ -95,6 +99,9 @@ async def prune_requests(max_rows: int, days: int):
         await conn.execute(
             "DELETE FROM gateway_requests WHERE id < (SELECT id FROM gateway_requests ORDER BY id DESC OFFSET %s LIMIT 1)",
             (max(1, max_rows) - 1,),
+        )
+        await conn.execute(
+            "DELETE FROM traffic_collection_ticks WHERE observed_at < now()-interval '8 days'"
         )
         await conn.commit()
 

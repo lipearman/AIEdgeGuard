@@ -6,13 +6,16 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 import redis.asyncio as aioredis
 
+from app import evaluation
 from app.config import settings
 from app.integrations import dashboard_db
 
 log = logging.getLogger(__name__)
+COLLECTOR_INSTANCE = str(uuid4())
 
 
 def normalize(raw: dict) -> dict | None:
@@ -46,6 +49,8 @@ def read_batch(path: Path, state: dict):
     if offset > stat.st_size:
         offset = 0
     rows = []
+    malformed = False
+    reset = state.get("inode") != stat.st_ino or state.get("offset", 0) > stat.st_size
     with path.open("rb") as reader:
         reader.seek(offset)
         if not state and offset:
@@ -60,20 +65,47 @@ def read_batch(path: Path, state: dict):
                 row = normalize(json.loads(line))
                 if row:
                     rows.append(row)
+                else:
+                    malformed = True
             except (ValueError, TypeError):
+                malformed = True
                 log.warning("Malformed access log at offset %s", position)
-    return rows, {"inode": stat.st_ino, "offset": position}
+    return rows, {
+        "inode": stat.st_ino,
+        "offset": position,
+        "caught_up": position == stat.st_size and not malformed and not reset,
+    }
 
 
 async def collect_once(redis):
     path = Path(settings.request_log_path)
+    observed = datetime.now(UTC)
     if not path.exists():
+        await evaluation.record_tick(observed, None, "missing_log")
         return 0
     checkpoint = await redis.get("edge:requests:checkpoint")
-    rows, state = await asyncio.to_thread(
-        read_batch, path, json.loads(checkpoint) if checkpoint else {}
-    )
+    previous = json.loads(checkpoint) if checkpoint else {}
+    rows, state = await asyncio.to_thread(read_batch, path, previous)
     await dashboard_db.insert_requests(rows)
+    last = (
+        datetime.fromisoformat(previous["polled_at"])
+        if previous.get("polled_at")
+        else None
+    )
+    continuous = (
+        last is not None
+        and 0 < (observed - last).total_seconds() <= 15
+        and previous.get("caught_up")
+        and previous.get("instance_id") == COLLECTOR_INSTANCE
+        and state["caught_up"]
+    )
+    await evaluation.record_tick(
+        observed,
+        last if continuous else None,
+        "caught_up" if continuous else "gap_reset_backlog_or_malformed",
+    )
+    state["polled_at"] = observed.isoformat()
+    state["instance_id"] = COLLECTOR_INSTANCE
     await redis.set("edge:requests:checkpoint", json.dumps(state))
     return len(rows)
 
