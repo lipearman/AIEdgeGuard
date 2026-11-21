@@ -12,6 +12,7 @@ import sys
 
 import redis.asyncio as aioredis
 
+from app import intelligence
 from app.agents import learning
 from app.agents.analysis import analyze_event
 from app.config import settings
@@ -221,6 +222,12 @@ async def _process(r, msg_id, fields) -> None:
         "destination": "(from alert context)",
         "evidence": _compact_evidence(incident),
     }
+    try:
+        enrichment = await intelligence.event_context(incident.get("event") or {})
+        if enrichment:
+            event["evidence"] = {"threat_intelligence": enrichment, **event["evidence"]}
+    except Exception as exc:  # noqa: BLE001 — enrichment must not stop ingestion/analysis
+        sys.stderr.write(f"[worker] KEV context unavailable: {type(exc).__name__}\n")
     # Phase 9: similar past incidents as RAG context (learning loop)
     if settings.learning_enabled:
         try:

@@ -10,7 +10,9 @@
     <link rel="stylesheet" href="static/dashboard.css?v=20261112-background" />
     <link rel="stylesheet" href="static/triage.css?v=20261113-final" />
     <script src="static/triage.js?v=20261113-final" defer></script>
-    <script src="static/dashboard.js?v=20261113-triage" defer></script>
+    <link rel="stylesheet" href="static/intelligence.css?v=20261121" />
+    <script src="static/intelligence.js?v=20261121" defer></script>
+    <script src="static/dashboard.js?v=20261121-investigation" defer></script>
   </head>
   <body class="dashboard-page">
     <svg
@@ -179,6 +181,14 @@
             data-kind="triage"
           >
             AI Triage</button
+          ><button
+            id="tab-intelligence"
+            role="tab"
+            aria-controls="intelligenceWorkspace"
+            aria-selected="false"
+            data-kind="intelligence"
+          >
+            Intelligence</button
           ><button
             id="tab-approvals"
             role="tab"
@@ -351,6 +361,68 @@
               </p>
             </section>
           </div>
+        </section>
+        <section
+          id="intelligenceWorkspace"
+          class="intelligence-workspace"
+          role="tabpanel"
+          aria-labelledby="tab-intelligence"
+          hidden
+        >
+          <div class="intel-heading">
+            <div>
+              <h3>Known exploited vulnerabilities</h3>
+              <p>CISA KEV · local catalog · automatic daily refresh</p>
+            </div>
+            <button id="intelSync" class="quiet-button">Sync catalog</button>
+          </div>
+          <p id="intelFeedStatus" class="intel-status" role="status">
+            Loading feed status…
+          </p>
+          <p class="intel-scope">
+            รายการนี้เป็นข่าวกรองช่องโหว่
+            ไม่ได้ยืนยันว่าแอปหรือเครื่องของคุณได้รับผลกระทบ
+            และไม่มีการสร้างกฎบล็อกอัตโนมัติ
+          </p>
+          <form id="intelSearchForm" class="intel-search">
+            <label for="intelSearch">Find CVE / vendor / product</label
+            ><input
+              id="intelSearch"
+              type="search"
+              maxlength="120"
+              autocomplete="off"
+              placeholder="CVE-2024-4577, PHP, Microsoft…"
+            /><button class="quiet-button" type="submit">Search</button>
+          </form>
+          <div id="intelCatalog" class="intel-catalog"></div>
+          <div class="intel-pager">
+            <button id="intelPrevious" class="quiet-button" disabled>
+              Previous</button
+            ><span id="intelPage" role="status">—</span
+            ><button id="intelNext" class="quiet-button" disabled>Next</button>
+          </div>
+          <section class="behavior-panel" aria-labelledby="behaviorTitle">
+            <div class="intel-heading">
+              <div>
+                <h3 id="behaviorTitle">Traffic behavior baseline</h3>
+                <p>
+                  CPU · explainable volume deviation · completed 5-minute window
+                </p>
+              </div>
+              <button id="behaviorRefresh" class="quiet-button">
+                Refresh baseline
+              </button>
+            </div>
+            <p id="behaviorStatus" class="intel-status" role="status">
+              Loading baseline…
+            </p>
+            <p class="intel-scope">
+              เทียบปริมาณ request กับ 12 ช่วงก่อนหน้า แยกตาม host/router
+              ต้องมีประวัติอย่างน้อย 60 นาที ผลผิดปกติเป็นสัญญาณให้ตรวจสอบ
+              ไม่ใช่ข้อยืนยันการโจมตี
+            </p>
+            <div id="behaviorResults"></div>
+          </section>
         </section>
         <div id="tableToolbar" class="table-toolbar">
           <label class="search-field"

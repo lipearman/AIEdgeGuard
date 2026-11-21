@@ -2,6 +2,8 @@
 
 Current source-aligned diagram, 2026-11-13:
 
+The 2026-11-21 [V2 foundation](v2-foundation.md) adds KEV catalog/enrichment, CPU traffic baseline and candidate investigation timeline. Those additions are documented separately; the image below remains the dated 2026-11-13 architecture reference.
+
 ![Current LACD architecture](assets/examples/architecture-current.png)
 
 ## Traffic and sensors

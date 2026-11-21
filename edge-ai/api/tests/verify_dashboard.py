@@ -344,7 +344,14 @@ def run():
             page.wait_for_function(
                 "document.querySelectorAll('.row-actions button').length>0"
             )
-            page.on("dialog", lambda dialog: dialog.accept())
+            page.on(
+                "dialog",
+                lambda dialog: (
+                    dialog.accept("browser-test-key")
+                    if dialog.type == "prompt"
+                    else dialog.accept()
+                ),
+            )
             page.locator(".row-actions .reject").first.click()
             page.wait_for_function(
                 "document.querySelector('#statPending').textContent==='8'"
@@ -391,4 +398,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-

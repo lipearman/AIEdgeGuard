@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import telemetry, traffic, triage, watcher, worker
+from app import intelligence, investigation, telemetry, traffic, triage, watcher, worker
 from app.agents import attack, decider, decision, defense, detection, learning
 from app.agents.analysis import AnalysisResult, analyze_event
 from app.config import settings
@@ -43,6 +43,9 @@ _background: list[asyncio.Task] = []
 async def lifespan(app: FastAPI):
     await db.init_schema()
     await dashboard_db.init_schema()
+    await intelligence.init_schema()
+    if settings.intelligence_enabled:
+        _background.append(asyncio.create_task(intelligence.run()))
     if settings.request_history_enabled:
         _background.append(asyncio.create_task(traffic.run()))
     if settings.telemetry_enabled:
@@ -66,6 +69,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EdgeGuard Orchestrator", version="0.3.0", lifespan=lifespan)
 app.include_router(triage.router)
+app.include_router(intelligence.router)
+app.include_router(investigation.router)
 
 Collection = Literal[
     "requests", "incidents", "campaigns", "decisions", "approvals", "attacks"
@@ -139,6 +144,11 @@ async def require_operation_key(
         raise HTTPException(
             status_code=403, detail="invalid or missing operation key"
         )
+
+
+@app.post("/api/v1/intelligence/sync")
+async def intelligence_sync(_op: None = Depends(require_operation_key)):
+    return await intelligence.sync_once()
 
 
 @app.get("/", include_in_schema=False)

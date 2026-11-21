@@ -96,6 +96,7 @@ uv pip install --python .venv/Scripts/python.exe -r edge-ai/api/requirements.txt
 python edge-ai/api/tests/verify_mission.py
 python edge-ai/api/tests/verify_dashboard.py
 python edge-ai/api/tests/verify_triage.py
+python edge-ai/api/tests/verify_intelligence.py
 ```
 
 สคริปต์จำลอง API ทั้งหมด ไม่ยิงโจมตีจริง และเก็บภาพที่ `.artifacts/`
@@ -114,6 +115,8 @@ docker compose --env-file C:/Docker/gateway/.env -f edge-guard/docker-compose.ym
 Compose gateway ผูกกับ network และไฟล์ของแอปอื่นบนเครื่องนี้ การย้ายเครื่องต้องปรับ external networks, host paths, Tailscale IP และ credentials ให้ตรงก่อนใช้งาน `.env` ห้าม commit
 
 ## งานต่อยอด
+
+เริ่มเฟสพื้นฐาน V2 แล้ว: [Intelligence และ Investigation](docs/v2-foundation.md) เพิ่ม CISA KEV อัปเดตรายวัน, CPU traffic baseline, candidate timeline และหลักฐานประกอบการตรวจสอบ ดูสิ่งที่ส่งมอบกับงานลำดับถัดไปใน [Roadmap V2](docs/roadmap-v2.md)
 
 1. ขยาย Network-IDS จาก WSL eth0 ไปยัง Windows/LAN ด้วยการ mirror หรือ routing ที่กำหนดชัดเจน
 2. ตรวจ firewall จากเครื่อง Tailnet อีกเครื่อง (การทดสอบจากเครื่องเดียวกันไม่ยืนยัน remote filtering)

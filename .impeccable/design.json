@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T17:30:13.576716+00:00",
+  "generatedAt": "2026-11-21T05:13:34.471453+00:00",
   "title": "Design System: LACD Defense Console",
   "extensions": {
     "scope": "Mission Control and Dashboard / Defense Workspace; preserve their distinct overview and record-oriented layouts.",
@@ -24,7 +24,18 @@
       "edge-ai/api/app/static/triage.js",
       ".impeccable/review/triage-1440.png",
       ".impeccable/review/triage-768.png",
-      ".impeccable/review/triage-390.png"
+      ".impeccable/review/triage-390.png",
+      "docs/roadmap-v2.md",
+      "docs/v2-foundation.md",
+      "edge-ai/api/app/static/intelligence.css",
+      "edge-ai/api/app/static/intelligence.js",
+      ".impeccable/review/intelligence-1440.png",
+      ".impeccable/review/intelligence-768.png",
+      ".impeccable/review/intelligence-390.png",
+      ".impeccable/review/investigation-1440.png",
+      ".impeccable/review/investigation-390.png",
+      ".impeccable/review/investigation-policy-1440.png",
+      ".impeccable/review/investigation-policy-390.png"
     ],
     "colorMeta": {
       "bg": {
@@ -377,6 +388,14 @@
       {
         "name": "triage-stacked-max",
         "value": "900px"
+      },
+      {
+        "name": "intelligence-single-column-max",
+        "value": "800px"
+      },
+      {
+        "name": "intelligence-compact-max",
+        "value": "400px"
       }
     ],
     "dashboardBackground": {
@@ -408,6 +427,15 @@
         "Queue empty / unavailable / retry"
       ],
       "boundaries": "Advisory local Ollama; session-local model choice; unverified hostname hint; completed-report Redis cache 10 minutes; no edits to existing analysis or decisions and no enforcement."
+    },
+    "intelligence": {
+      "scope": "Dashboard Intelligence tab and existing Traffic/Incident evidence drawer; reuse incumbent palette, typography and controls.",
+      "catalogLayout": "Two equal minmax(0,1fr) columns; 14px gap; 24px workspace padding; cards 16px padding/7px radius. <=800px one column/18px padding; <=400px 14px padding/full-row search.",
+      "catalogStates": "Search and ten-entry paging; visible source/version/last-success/refresh mode/current/stale/unavailable/error; distinguish empty from error. Current is <=48h successful fetch without later sync failure, not complete vulnerability coverage.",
+      "baseline": "CPU volume heuristic, not ML or attack verdict; completed five-minute bucket versus 12 preceding buckets. Identity/reason/state/count/median/score; Unusual volume, Warming up, Within baseline, stale and missing states distinct.",
+      "investigation": "On-demand existing drawer; bounded decoded/masked target and syntax hints; source-vs-AI CVE provenance and KEV snapshot freshness; candidate timeline with reasons, not verified causation; native policy/response details with stored checks/results.",
+      "limits": "No new body capture or asset applicability claim; no-match is not safety; timeline pages up to 50 can change with late arrivals; latest 20 linked decisions with truncation notice; no new enforcement.",
+      "typography": "23px investigation section heading, 21px result subhead, 12px/1.8 body, 11px candidate metadata; code max-height 280px/local scrolling."
     }
   },
   "components": [
@@ -502,7 +530,7 @@
   ],
   "narrative": {
     "northStar": "The Local Defense Console",
-    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. AI Triage extends Dashboard with an advisory Wazuh priority queue and streamed local report, using the same visual language. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
+    "overview": "Mission Control is a dense midnight-navy operations console with a cyan illuminated center. The supplied dashboard reference governs this built surface: compact incident evidence frames a large shield/world composition, while restrained neural imagery supports the AI status stack.\n\nThis system applies to Mission Control and the authorized Dashboard extension (Defense Workspace). Mission keeps its three-column overview; Dashboard reuses the palette, local fonts and shield artwork as a static decorative page background while giving operational records the primary reading space. AI Triage extends Dashboard with an advisory Wazuh priority queue and streamed local report, using the same visual language. Intelligence adds a local KEV catalog, explainable CPU traffic baseline and on-demand investigation evidence within that existing world. Small English condensed headings and numerals pair with readable Thai and English operational copy; measured borders and tonal panels keep the artwork from competing with evidence.",
     "keyCharacteristics": [
       "Dense operational hierarchy with a dominant central scene.",
       "Local bilingual fonts, thin cyan line icons and tabular metrics.",

@@ -31,6 +31,10 @@ const layers = {
   manual: "MANUAL",
 };
 const tabs = {
+  intelligence: [
+    "Threat intelligence & investigation",
+    "Known exploited vulnerabilities · CPU traffic baseline · evidence-first investigation",
+  ],
   triage: [
     "AI alert triage copilot",
     "Wazuh SIEM evidence · Local Ollama streaming analysis",
@@ -283,11 +287,17 @@ function configureFilters() {
   $("sourceFilter").value = "";
   $("recordSeverity").value = "";
   $("labControls").hidden = kind !== "attacks";
-  $("tableToolbar").hidden = ["policy", "triage"].includes(kind);
-  $("pager").hidden = ["policy", "triage"].includes(kind);
-  $("dataView").hidden = kind === "triage";
+  $("tableToolbar").hidden = ["policy", "triage", "intelligence"].includes(
+    kind,
+  );
+  $("pager").hidden = ["policy", "triage", "intelligence"].includes(kind);
+  $("dataView").hidden = ["triage", "intelligence"].includes(kind);
+  $("intelligenceWorkspace").hidden = kind !== "intelligence";
   $("triageWorkspace").hidden = kind !== "triage";
-  document.querySelector(".capture-note").hidden = kind === "triage";
+  document.querySelector(".capture-note").hidden = [
+    "triage",
+    "intelligence",
+  ].includes(kind);
   $("dataView").setAttribute("aria-labelledby", "tab-" + kind);
 }
 function switchTab(next) {
@@ -329,6 +339,13 @@ async function loadPage() {
   $("dataView").setAttribute("aria-busy", "true");
   $("refreshState").textContent = "กำลังโหลดข้อมูล…";
   try {
+    if (kind === "intelligence") {
+      await window.EdgeIntelligence.refresh();
+      if (ticket === sequence)
+        $("refreshState").textContent =
+          "Local enrichment · no automatic enforcement";
+      return;
+    }
     if (kind === "triage") {
       $("refreshState").textContent = "On-demand analysis · Wazuh alerts";
       return;
@@ -849,6 +866,8 @@ async function openDetail(index) {
           .filter(([, value]) => value === null || typeof value !== "object")
           .map(([key, value]) => [key, value]),
       );
+    if (["requests", "incidents"].includes(recordKind))
+      window.EdgeIntelligence.attach(content, recordKind, row);
     const details = node("details"),
       summary = node("summary", "", "Raw JSON evidence");
     details.append(
@@ -877,7 +896,9 @@ async function act(item, verb, button) {
   )
     return;
   button.disabled = true;
-  const opkey = sessionStorage.opkey || prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
+  const opkey =
+    sessionStorage.opkey ||
+    prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
   if (!opkey) {
     button.disabled = false;
     return;
@@ -910,7 +931,9 @@ async function runLab() {
     )
   )
     return;
-  const opkey = sessionStorage.opkey || prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
+  const opkey =
+    sessionStorage.opkey ||
+    prompt("ใส่ Operation Key เพื่ออนุญาตคำสั่งเปลี่ยนสถานะ:");
   if (!opkey) {
     labBusy = false;
     updateLab();
@@ -990,6 +1013,7 @@ $("refreshDashboard").addEventListener("click", () => {
 });
 $("closeDetail").addEventListener("click", () => $("detailDialog").close());
 $("detailDialog").addEventListener("close", () => {
+  window.EdgeIntelligence.cancelInvestigation();
   detailSequence++;
   detailAbort?.abort();
   selectedRecord = null;

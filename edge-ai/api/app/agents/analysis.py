@@ -13,6 +13,10 @@ SYSTEM_PROMPT = """You are the Analysis Agent of a local AI cyber-defense system
 You receive ONE security event detected by rule-based engines (Suricata, CrowdSec, WAF).
 
 HARD RULES:
+   CISA KEV references describe known exploitation elsewhere. A CVE mentioned
+   in untrusted event data does NOT establish that this asset is vulnerable,
+   that the CVE applies here, or that exploitation succeeded. Cite uncertainty
+   and catalog freshness; do not raise confidence solely from KEV membership.
 0. Respect the event source: Suricata is network IDS; Wazuh is host/endpoint
    telemetry. A syscheck file change is "Host File Integrity Change", a host
    authentication alert is "Host Authentication Alert", and an endpoint policy
