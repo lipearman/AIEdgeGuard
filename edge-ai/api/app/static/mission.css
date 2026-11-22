@@ -1427,6 +1427,17 @@ dialog::backdrop {
   font: 600 16px var(--display);
   margin: 0 0 9px;
 }
+.operations-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 12px;
+  margin-bottom: 9px;
+}
+.operations-heading h2 {
+  margin: 0;
+}
 .operations-strip dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1464,8 +1475,7 @@ dialog::backdrop {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 20px;
 }
-.operations-views > div,
-#executiveReport {
+.operations-views > div {
   border-top: 1px solid var(--line);
   padding: 12px 0;
 }
@@ -1477,11 +1487,14 @@ dialog::backdrop {
   display: inline-flex;
   font-size: 14px;
 }
-.operations-workspace p {
-  color: var(--muted);
+.operations-workspace p,
+#executiveReport p {
   font-size: 13px;
   line-height: 1.6;
   margin: 4px 0;
+}
+.operations-workspace p {
+  color: var(--muted);
 }
 #executiveReport {
   scroll-margin-top: 72px;
@@ -1495,7 +1508,8 @@ dialog::backdrop {
   }
 }
 @media (max-width: 700px) {
-  .operations-workspace {
+  .operations-workspace,
+  #executiveReport {
     order: 3;
   }
 }

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#030a12" />
     <title>LACD — Mission Control</title>
     <link rel="stylesheet" href="static/fonts/mission-fonts.css" />
-    <link rel="stylesheet" href="static/mission.css?v=operations" />
+    <link rel="stylesheet" href="static/mission.css?v=executive-report" />
     <link
       rel="preload"
       href="static/media/mission-shield-world.png"
@@ -14,7 +14,7 @@
     />
     <script src="static/vendor/three.min.js" defer></script>
     <script src="static/mission-scene.js?v=20261112-autoplay" defer></script>
-    <script src="static/mission.js?v=operations" defer></script>
+    <script src="static/mission.js?v=executive-report" defer></script>
   </head>
   <body>
     <svg
@@ -106,7 +106,10 @@
         </div>
       </section>
       <section class="operations-strip" aria-labelledby="operationsTitle">
-        <h2 id="operationsTitle">OPERATIONS STATUS</h2>
+        <header class="operations-heading">
+          <h2 id="operationsTitle">OPERATIONS STATUS</h2>
+          <a href="#executiveReport">ดูรายงานสรุป</a>
+        </header>
         <dl>
           <div>
             <dt>Traefik collector</dt>
@@ -470,15 +473,20 @@
             <a href="#executiveReport">ดูรายงานสรุป</a>
           </div>
         </nav>
-        <section id="executiveReport" aria-labelledby="executiveTitle">
-          <h2 id="executiveTitle">EXECUTIVE REPORT</h2>
-          <p id="executiveSummary">กำลังโหลดข้อมูลปฏิบัติการ…</p>
-          <p class="muted">
-            ใช้ยอดรวมที่ระบบจัดเก็บเพื่อวางแผนติดตามเคส
-            การประเมินความเสี่ยงรายสินทรัพย์ใช้หลักฐานและบริบทเพิ่มเติม
-          </p>
-        </section>
       </details>
+      <section
+        class="operations-strip"
+        id="executiveReport"
+        aria-labelledby="executiveTitle"
+        tabindex="-1"
+      >
+        <h2 id="executiveTitle">EXECUTIVE REPORT</h2>
+        <p id="executiveSummary">กำลังโหลดข้อมูลปฏิบัติการ…</p>
+        <p class="muted">
+          ใช้ยอดรวมที่ระบบจัดเก็บเพื่อวางแผนติดตามเคส
+          การประเมินความเสี่ยงรายสินทรัพย์ใช้หลักฐานและบริบทเพิ่มเติม
+        </p>
+      </section>
     </main>
     <footer class="statusbar">
       <span

@@ -529,7 +529,18 @@ function clock() {
 }
 clock();
 setInterval(clock, 1000);
-loadStatus();
+const initialStatus = loadStatus();
+if (location.hash === "#executiveReport") {
+  Promise.all([initialStatus, document.fonts.ready]).then(() => {
+    // Telemetry changes the height of the panels above the report on load.
+    if (location.hash === "#executiveReport") {
+      byId("executiveReport")?.scrollIntoView({
+        behavior: "instant",
+        block: "nearest",
+      });
+    }
+  });
+}
 setInterval(() => {
   if (!document.hidden) loadStatus();
 }, 30000);

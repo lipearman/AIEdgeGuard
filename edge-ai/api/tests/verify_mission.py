@@ -4,7 +4,7 @@ import json
 import mimetypes
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[3]
 STATIC = ROOT / "edge-ai/api/app/static"
@@ -218,7 +218,18 @@ def run():
                 page.locator(".operations-strip").first.screenshot(
                     path=str(ARTIFACTS / f"mission-operations-{width}.png")
                 )
-            page.locator(".operations-workspace > summary").click()
+            workspace = page.locator(".operations-workspace")
+            report = page.locator("#executiveReport")
+            page.locator(".operations-heading a").press("Enter")
+            expect(report).to_be_focused()
+            expect(report).to_be_in_viewport(ratio=0.95)
+            assert not workspace.evaluate("details => details.open")
+            if width == 390:
+                page.reload()
+                expect(report).to_be_in_viewport(ratio=0.95)
+                expect(report).to_contain_text("แคมเปญ 11")
+                assert not workspace.evaluate("details => details.open")
+            workspace.locator("summary").click()
             links = page.locator(".operations-views a")
             assert links.count() == 9
             assert links.first.inner_text() == "เปิด Asset Inventory"
