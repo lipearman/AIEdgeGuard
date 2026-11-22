@@ -16,4 +16,8 @@ Newly generated 3D world/shield artwork dominates the center; a generated neural
 Three-layer visibility displays verified HTTP-WAF, Network-IDS and Host-EDR heartbeat evidence. Network coverage is WSL eth0, not all LAN/Windows packet capture. Wazuh has Windows and Ubuntu agents. Map beacons are illustrative and labeled, not geolocation. All counts identify the loaded sample. Never invent endpoint counts or compliance badges. All fonts, art and Three.js self-hosted.
 
 ## Verification and acceptance
+
+The Operations Status strip follows Defense Visibility and uses the same operational visual system. It shows the most recent collector poll, latest retained HTTP request, all stored incidents awaiting analysis, and all pending approvals. It uses explicit unavailable values and keeps direct links to the relevant Dashboard tabs. The strip wraps to a two-column grid on phones. Verify it in the existing Mission browser workflow and review the saved desktop and mobile component captures.
+
+Operations Workspace sits below the three-column workspace as a collapsed disclosure. It provides the nine requested destinations using existing views with their current evidence boundaries. An inline Executive Report gives stored incident, analysis, approval and campaign counts.
 Screenshots: .impeccable/review/desktop.png (1440), user-1392.png (reference width), mobile.png (390). Five widths tested down to320. Functional mock tests cover prefixes, errors, filtering, details, escaping, lab confirmation and motion. Live sensor tests cover Suricata URI detection and Wazuh file-integrity events. No changes to auto-execution. User request overrides additional design interviews or concept-selection gates.

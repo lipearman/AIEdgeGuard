@@ -97,9 +97,11 @@ h3 {
   color: var(--bg);
   z-index: 30;
   padding: 12px;
+  clip-path: inset(50%);
 }
 .skip-link:focus {
   top: 8px;
+  clip-path: none;
 }
 .topbar {
   max-width: 1920px;
@@ -1412,6 +1414,101 @@ dialog::backdrop {
 }
 .visibility-title {
   min-width: 135px;
+}
+
+.operations-strip {
+  grid-column: 1 / -1;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #061522;
+}
+.operations-strip h2 {
+  font: 600 16px var(--display);
+  margin: 0 0 9px;
+}
+.operations-strip dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 0;
+}
+.operations-strip dt,
+.operations-strip .ops-detail {
+  color: var(--muted);
+  font-size: 12px;
+}
+.operations-strip dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.operations-strip a {
+  color: var(--cyan-soft);
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+}
+.operations-strip [data-state="attention"] {
+  color: var(--amber);
+}
+.operations-workspace > summary {
+  cursor: pointer;
+  color: var(--cyan-soft);
+  font: 600 18px var(--display);
+  padding: 8px 0;
+}
+.operations-views {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 20px;
+}
+.operations-views > div,
+#executiveReport {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.operations-views h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.operations-views a {
+  display: inline-flex;
+  font-size: 14px;
+}
+.operations-workspace p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 4px 0;
+}
+#executiveReport {
+  scroll-margin-top: 72px;
+}
+@media (max-width: 800px) {
+  .operations-strip dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .operations-views {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .operations-workspace {
+    order: 3;
+  }
+}
+@media (max-width: 600px) {
+  .operations-strip a {
+    min-height: 44px;
+  }
+  .operations-views a {
+    width: 100%;
+  }
+  .operations-views {
+    grid-template-columns: 1fr;
+  }
 }
 .visibility-title h2 {
   font: 600 15px var(--display);

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#030a12" />
     <title>LACD — Mission Control</title>
     <link rel="stylesheet" href="static/fonts/mission-fonts.css" />
-    <link rel="stylesheet" href="static/mission.css" />
+    <link rel="stylesheet" href="static/mission.css?v=operations" />
     <link
       rel="preload"
       href="static/media/mission-shield-world.png"
@@ -14,7 +14,7 @@
     />
     <script src="static/vendor/three.min.js" defer></script>
     <script src="static/mission-scene.js?v=20261112-autoplay" defer></script>
-    <script src="static/mission.js?v=20261121-reviewed-memory" defer></script>
+    <script src="static/mission.js?v=operations" defer></script>
   </head>
   <body>
     <svg
@@ -104,6 +104,37 @@
         <div id="visibilityLayers" class="visibility-layers">
           <p class="muted">กำลังตรวจ HTTP-WAF · Network-IDS · Host-EDR…</p>
         </div>
+      </section>
+      <section class="operations-strip" aria-labelledby="operationsTitle">
+        <h2 id="operationsTitle">OPERATIONS STATUS</h2>
+        <dl>
+          <div>
+            <dt>Traefik collector</dt>
+            <dd id="opsCollector">กำลังโหลด…</dd>
+            <dd id="opsTick" class="ops-detail"></dd>
+          </div>
+          <div>
+            <dt>HTTP request ล่าสุด</dt>
+            <dd id="opsHttp">กำลังโหลด…</dd>
+            <dd class="ops-detail">
+              <a href="dashboard#requests">ดู Traffic</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Incident ที่ยังไม่วิเคราะห์</dt>
+            <dd id="opsUnanalyzed">กำลังโหลด…</dd>
+            <dd class="ops-detail">
+              <a href="dashboard#incidents">ดู Incidents</a>
+            </dd>
+          </div>
+          <div>
+            <dt>รายการรออนุมัติ</dt>
+            <dd id="opsPending">กำลังโหลด…</dd>
+            <dd class="ops-detail">
+              <a href="dashboard#approvals">ดู Approvals</a>
+            </dd>
+          </div>
+        </dl>
       </section>
       <div class="left-column">
         <section class="panel overview" aria-labelledby="overviewTitle">
@@ -370,6 +401,84 @@
           <p id="attackResult" class="lab-result" role="status"></p>
         </section>
       </div>
+      <details class="operations-strip operations-workspace">
+        <summary>Operations workspace</summary>
+        <nav aria-label="Operations views" class="operations-views">
+          <div>
+            <h3>Live Network Topology</h3>
+            <p>
+              ดู host และ route ที่ผูกในทะเบียน พร้อมข้อมูลที่ Wazuh สังเกตได้
+              แผนผังการเชื่อมต่อจริงยังต้องยืนยัน
+            </p>
+            <a href="dashboard#assets">เปิด Asset Inventory</a>
+          </div>
+          <div>
+            <h3>Attack Timeline</h3>
+            <p>
+              เปิด Inspect เพื่อดูเวลาเหตุการณ์ เวลารับเข้า
+              และความสัมพันธ์ของหลักฐานในเคส
+            </p>
+            <a href="dashboard#incidents">เปิด Incidents</a>
+          </div>
+          <div>
+            <h3>Asset Risk Map</h3>
+            <p>
+              ตรวจระดับความสำคัญที่ผู้ดูแลระบุ การจัดอันดับความเสี่ยง
+              ต้องใช้หลักฐานช่องโหว่และบริบทเพิ่มเติม
+            </p>
+            <a href="dashboard#assets">เปิด Asset Inventory</a>
+          </div>
+          <div>
+            <h3>AI Reasoning &amp; Evidence</h3>
+            <p>เปิดรายงาน AI Triage และดูข้อมูลต้นทางที่ใช้ประกอบผลวิเคราะห์</p>
+            <a href="dashboard#triage">เปิด AI Triage</a>
+          </div>
+          <div>
+            <h3>MITRE Coverage Matrix</h3>
+            <p>
+              เปิดคลัง MITRE ATT&amp;CK ตาราง coverage
+              ต้องอาศัยผลทดสอบการตรวจจับรายเทคนิค
+            </p>
+            <a href="dashboard#sources">เปิด Sources</a>
+          </div>
+          <div>
+            <h3>Threat Intelligence Center</h3>
+            <p>ดูรายการช่องโหว่ CISA KEV ข้อมูล EPSS และเวลาซิงก์ล่าสุด</p>
+            <a href="dashboard#intelligence">เปิด Threat Intelligence</a>
+          </div>
+          <div>
+            <h3>Defense Playbooks</h3>
+            <p>
+              ดู policy และข้อกำหนดการอนุมัติ ชุด playbook อัตโนมัติอยู่ในแผนเฟส
+              4
+            </p>
+            <a href="dashboard#policy">เปิด Policy</a>
+          </div>
+          <div>
+            <h3>Model Performance</h3>
+            <p>
+              เปิดผล replay ของตัวตรวจแบบ baseline และ EWMA
+              ผลประเมินความแม่นยำและเวลา LLM ต้องวัดแยก
+            </p>
+            <a href="dashboard#evaluation">เปิด Behavior Evaluation</a>
+          </div>
+          <div>
+            <h3>Executive Report</h3>
+            <p>
+              ดูภาพรวมภาระงานวิเคราะห์ รายการรออนุมัติ และจำนวนแคมเปญจากระบบ
+            </p>
+            <a href="#executiveReport">ดูรายงานสรุป</a>
+          </div>
+        </nav>
+        <section id="executiveReport" aria-labelledby="executiveTitle">
+          <h2 id="executiveTitle">EXECUTIVE REPORT</h2>
+          <p id="executiveSummary">กำลังโหลดข้อมูลปฏิบัติการ…</p>
+          <p class="muted">
+            ใช้ยอดรวมที่ระบบจัดเก็บเพื่อวางแผนติดตามเคส
+            การประเมินความเสี่ยงรายสินทรัพย์ใช้หลักฐานและบริบทเพิ่มเติม
+          </p>
+        </section>
+      </details>
     </main>
     <footer class="statusbar">
       <span

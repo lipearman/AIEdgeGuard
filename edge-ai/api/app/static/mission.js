@@ -312,6 +312,49 @@ function renderVisibility(data) {
   byId("coverageCount").textContent =
     `${Object.values(data.layers || {}).filter((l) => ["online", "receiving"].includes(l.state)).length} / 3 layers`;
 }
+const opsTimestamp = (value) => {
+  const date = value && new Date(value);
+  return date && Number.isFinite(+date)
+    ? date.toISOString().slice(0, 19).replace("T", " ") + " UTC"
+    : "";
+};
+
+function renderOpsSummary(summary) {
+  if (!byId("opsHttp")) return;
+  const latest = opsTimestamp(summary?.requests_latest);
+  byId("opsHttp").textContent =
+    latest || (summary?.requests === 0 ? "ยังไม่มี request" : "ไม่ทราบ");
+  const { incidents, analyzed, pending, campaigns } = summary || {};
+  byId("opsUnanalyzed").textContent =
+    Number.isInteger(incidents) &&
+    Number.isInteger(analyzed) &&
+    analyzed >= 0 &&
+    incidents >= analyzed
+      ? fmt(incidents - analyzed)
+      : "ไม่ทราบ";
+  byId("opsPending").textContent =
+    Number.isInteger(pending) && pending >= 0 ? fmt(pending) : "ไม่ทราบ";
+  const total = (value) =>
+    Number.isInteger(value) && value >= 0 ? fmt(value) : "ไม่ทราบ";
+  byId("executiveSummary").textContent = summary
+    ? `Incident ที่จัดเก็บ ${total(incidents)} · วิเคราะห์แล้ว ${total(analyzed)} · รออนุมัติ ${total(pending)} · แคมเปญ ${total(campaigns)}`
+    : "ข้อมูลสรุปไม่พร้อม กดโหลดใหม่เพื่อลองอีกครั้ง";
+}
+
+function renderOpsCollector(status) {
+  if (!byId("opsCollector")) return;
+  const labels = {
+    collecting: "อ่าน log ต่อเนื่อง",
+    stale_or_not_started: "ยังไม่มีข้อมูลล่าสุด",
+    gap_or_not_started: "พบช่วงขาดหรือกำลังเริ่ม",
+  };
+  byId("opsCollector").textContent = labels[status?.state] || "ไม่ทราบ";
+  byId("opsCollector").dataset.state =
+    status?.state === "collecting" ? "ready" : "attention";
+  const latest = opsTimestamp(status?.latest_tick);
+  byId("opsTick").textContent = latest ? `ตรวจล่าสุด ${latest}` : "";
+}
+
 async function loadStatus() {
   if (refreshing) return;
   refreshing = true;
@@ -324,6 +367,8 @@ async function loadStatus() {
     ["/api/v1/packets?limit=80", renderPackets],
     ["/api/v1/learning/stats", renderMemory],
     ["/api/v1/visibility", renderVisibility],
+    ["/api/v1/dashboard/summary", renderOpsSummary],
+    ["/api/v1/evaluation/status", renderOpsCollector],
   ];
   const results = await Promise.allSettled(
     specs.map(async ([path, render]) => {
@@ -393,6 +438,8 @@ async function loadStatus() {
     renderHealth({});
     byId("protectionLabel").textContent = "HEALTH DATA UNAVAILABLE";
   }
+  if (results[7].status === "rejected") renderOpsSummary(null);
+  if (results[8].status === "rejected") renderOpsCollector(null);
   byId("connectionDot").className = "dot" + (failed.length ? " pending" : "");
   byId("connectionLabel").textContent = failed.length
     ? "PARTIAL DATA"

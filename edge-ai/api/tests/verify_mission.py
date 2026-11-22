@@ -43,6 +43,8 @@ def run():
                         "/decisions",
                         "/packets",
                         "/learning/stats",
+                        "/dashboard/summary",
+                        "/evaluation/status",
                     ]
                 ):
                     request.fulfill(status=503, json={"detail": "Metrics unavailable"})
@@ -130,6 +132,20 @@ def run():
                         "analyzed": 441,
                         "dim": 768,
                     }
+                elif path == "/api/v1/dashboard/summary":
+                    data = {
+                        "requests": 80,
+                        "requests_latest": "2026-11-21T10:00:00Z",
+                        "incidents": 970,
+                        "analyzed": 950,
+                        "pending": 124,
+                        "campaigns": 11,
+                    }
+                elif path == "/api/v1/evaluation/status":
+                    data = {
+                        "state": "collecting",
+                        "latest_tick": "2026-11-21T10:01:00Z",
+                    }
                 elif path == "/api/v1/visibility":
                     data = {
                         "layers": {
@@ -170,6 +186,16 @@ def run():
             assert "auto-ingestion" in page.locator("#engine").inner_text()
             assert page.locator("#coverageCount").inner_text() == "3 / 3 layers"
             assert page.locator("#pendingCount").inner_text() == "1"
+            assert page.locator("#opsPending").inner_text() == "124"
+            assert page.locator("#opsUnanalyzed").inner_text() == "20"
+            assert page.locator("#opsCollector").inner_text() == "อ่าน log ต่อเนื่อง"
+            assert page.locator("#opsHttp").inner_text() == "2026-11-21 10:00:00 UTC"
+            assert (
+                page.locator(".operations-strip dl a").last.evaluate(
+                    "a=>new URL(a.href).pathname"
+                )
+                == prefix + "/dashboard"
+            )
             assert page.locator("#attack").is_disabled()
             assert page.locator("#feed img").count() == 0
             assert page.evaluate("window.injected") is None
@@ -189,6 +215,41 @@ def run():
                     else "user-1392.png"
                 )
                 page.screenshot(path=str(ARTIFACTS / filename), full_page=True)
+                page.locator(".operations-strip").first.screenshot(
+                    path=str(ARTIFACTS / f"mission-operations-{width}.png")
+                )
+            page.locator(".operations-workspace > summary").click()
+            links = page.locator(".operations-views a")
+            assert links.count() == 9
+            assert links.first.inner_text() == "เปิด Asset Inventory"
+            if width <= 600:
+                assert links.evaluate_all(
+                    "links=>links.every(link=>link.getBoundingClientRect().height >= 44)"
+                )
+                assert page.evaluate(
+                    """document.querySelector('.operations-workspace').offsetTop
+                    >= document.querySelector('.right-column').offsetTop
+                      + document.querySelector('.right-column').offsetHeight"""
+                )
+            assert links.evaluate_all(
+                "links=>links.map(link=>new URL(link.href).hash)"
+            ) == [
+                "#assets",
+                "#incidents",
+                "#assets",
+                "#triage",
+                "#sources",
+                "#intelligence",
+                "#policy",
+                "#evaluation",
+                "#executiveReport",
+            ]
+            assert "แคมเปญ 11" in page.locator("#executiveSummary").inner_text()
+            if width in [1440, 390]:
+                page.locator(".operations-workspace").screenshot(
+                    path=str(ARTIFACTS / f"mission-workspace-{width}.png")
+                )
+            page.locator(".operations-workspace > summary").click()
             page.locator("#severityFilter").select_option("medium")
             assert "SQL Injection Attempt" in page.locator("#vectors").inner_text()
             assert "<img" not in page.locator("#vectors").inner_text()
@@ -220,6 +281,9 @@ def run():
             assert "ONLINE" not in page.locator("#visibilityLayers").inner_text()
             for field in ["pendingCount", "requestCount", "embeddedCount"]:
                 assert page.locator("#" + field).inner_text() == "—"
+            for field in ["opsCollector", "opsHttp", "opsUnanalyzed", "opsPending"]:
+                assert page.locator("#" + field).inner_text() == "ไม่ทราบ"
+            assert page.locator("#opsTick").inner_text() == ""
             state["fail_metrics"] = False
             state.update(offline=False, attack=True)
             page.locator("#refresh").click()
